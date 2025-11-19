@@ -9,13 +9,23 @@ export enum ConnectionStatus {
 }
 
 export interface ExecutorMessage {
-    type: 'execute' | 'bundle_execute' | 'heartbeat' | 'response';
+    type: 'execute' | 'bundle_execute' | 'heartbeat' | 'response' | 'debug_event' | 'memory_update' | 'profiler_data';
     code?: string;
     bundled?: boolean;
     selection?: boolean;
     success?: boolean;
     error?: string;
     output?: string;
+    // Debug fields
+    debugType?: 'breakpoint' | 'step' | 'pause' | 'variables';
+    threadId?: number;
+    stackFrameId?: number;
+    variables?: Record<string, any>;
+    // Memory fields
+    address?: number;
+    data?: string; // Hex string or base64
+    // Profiler fields
+    profileData?: any;
 }
 
 export class WebSocketManager {

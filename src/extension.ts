@@ -13,6 +13,11 @@ import { ExecutorManager } from './features/executorManager';
 import { ScriptPacker } from './features/scriptPacker';
 import { VariableInspector } from './features/variableInspector';
 import { Obfuscator } from './features/obfuscator';
+import { ExploUtorDebugAdapterDescriptorFactory } from './features/debugger';
+import { InjectionManager } from './features/injectionManager';
+import { MemoryViewer } from './features/memoryViewer';
+import { Profiler } from './features/profiler';
+import { PluginSystem } from './core/pluginSystem';
 
 let wsManager: WebSocketManager;
 let bundler: BundlerIntegration;
@@ -27,6 +32,10 @@ let executorManager: ExecutorManager;
 let scriptPacker: ScriptPacker;
 let variableInspector: VariableInspector;
 let obfuscator: Obfuscator;
+let pluginSystem: PluginSystem;
+let injectionManager: InjectionManager;
+let memoryViewer: MemoryViewer;
+let profiler: Profiler;
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('ExploUtor extension is now active');
@@ -76,6 +85,11 @@ export async function activate(context: vscode.ExtensionContext) {
     scriptPacker = new ScriptPacker(outputManager);
     variableInspector = new VariableInspector(wsManager, outputManager);
     obfuscator = new Obfuscator(outputManager);
+    pluginSystem = new PluginSystem(wsManager, context);
+    injectionManager = new InjectionManager(wsManager);
+    vscode.window.registerTreeDataProvider('exploUtorInjection', injectionManager);
+    memoryViewer = new MemoryViewer(wsManager, outputManager);
+    profiler = new Profiler(wsManager, outputManager);
 
     outputManager.info('All features initialized');
 
@@ -84,6 +98,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Register commands
     registerCommands(context);
+
+    // Register debug adapter
+    context.subscriptions.push(
+        vscode.debug.registerDebugAdapterDescriptorFactory(
+            'exploitor-debug',
+            new ExploUtorDebugAdapterDescriptorFactory(wsManager)
+        )
+    );
 
     // Auto-connect on activation if configured
     const config = vscode.workspace.getConfiguration('exploitor');
@@ -95,6 +117,8 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     outputManager.success('ExploUtor activated successfully');
+
+    return pluginSystem;
 }
 
 function registerLanguageFeatures(context: vscode.ExtensionContext) {
@@ -222,6 +246,33 @@ function registerCommands(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('exploitor.toggleLiveReload', () => {
             liveReloadManager.toggle();
+        })
+    );
+
+    // Injection Manager commands
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.killScript', (script) => {
+            injectionManager.killScript(script);
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.restartScript', (script) => {
+            injectionManager.restartScript(script);
+        })
+    );
+
+    // Memory Viewer command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.openMemoryViewer', () => {
+            memoryViewer.open();
+        })
+    );
+
+    // Profiler command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.openProfiler', () => {
+            profiler.open();
         })
     );
 
@@ -367,6 +418,18 @@ export async function deactivate() {
 
     if (outputManager) {
         outputManager.dispose();
+    }
+
+    if (pluginSystem) {
+        pluginSystem.dispose();
+    }
+
+    if (memoryViewer) {
+        memoryViewer.dispose();
+    }
+
+    if (profiler) {
+        profiler.dispose();
     }
 
     console.log('ExploUtor extension is now deactivated');

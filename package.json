@@ -19,6 +19,41 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "debuggers": [
+      {
+        "type": "exploitor-debug",
+        "label": "ExploUtor Debugger",
+        "languages": [
+          "luau",
+          "lua"
+        ],
+        "configurationAttributes": {
+          "attach": {
+            "properties": {
+              "host": {
+                "type": "string",
+                "default": "localhost",
+                "description": "Executor WebSocket host"
+              },
+              "port": {
+                "type": "number",
+                "default": 9999,
+                "description": "Executor WebSocket port"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "exploitor-debug",
+            "request": "attach",
+            "name": "Attach to Executor",
+            "host": "localhost",
+            "port": 9999
+          }
+        ]
+      }
+    ],
     "languages": [
       {
         "id": "luau",
@@ -71,6 +106,23 @@
         "command": "exploitor.disconnectExecutor",
         "title": "Disconnect from Executor",
         "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.restartScript",
+        "title": "Restart Script",
+        "category": "ExploUtor",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "exploitor.openMemoryViewer",
+        "title": "Open Memory Viewer",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.openProfiler",
+        "title": "Open Profiler",
+        "category": "ExploUtor",
+        "icon": "$(graph)"
       },
       {
         "command": "exploitor.refreshExplorer",
@@ -126,6 +178,12 @@
           "name": "Explorer",
           "icon": "$(debug-alt)",
           "contextualTitle": "ExploUtor Explorer"
+        },
+        {
+          "id": "exploUtorInjection",
+          "name": "Running Scripts",
+          "icon": "$(play)",
+          "contextualTitle": "Running Scripts"
         }
       ]
     },
@@ -140,6 +198,18 @@
           "command": "exploitor.clearHistory",
           "when": "view == exploUtorExplorer",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "exploitor.killScript",
+          "when": "view == exploUtorInjection && viewItem == runningScript",
+          "group": "inline"
+        },
+        {
+          "command": "exploitor.restartScript",
+          "when": "view == exploUtorInjection && viewItem == runningScript",
+          "group": "inline"
         }
       ],
       "editor/context": [
