@@ -10,7 +10,7 @@ export class StatusBarManager {
             100
         );
 
-        this.statusBarItem.command = 'exploitor.connectExecutor';
+        this.statusBarItem.command = 'exploitor.startServer';
         this.updateStatus(ConnectionStatus.Disconnected);
         this.statusBarItem.show();
     }
@@ -20,29 +20,29 @@ export class StatusBarManager {
             case ConnectionStatus.Connected:
                 this.statusBarItem.text = '$(check) ExploUtor: Connected';
                 this.statusBarItem.backgroundColor = undefined;
-                this.statusBarItem.tooltip = 'Connected to executor. Click to disconnect.';
-                this.statusBarItem.command = 'exploitor.disconnectExecutor';
+                this.statusBarItem.tooltip = 'Connected to executor. Click to stop server.';
+                this.statusBarItem.command = 'exploitor.stopServer';
                 break;
 
-            case ConnectionStatus.Connecting:
-                this.statusBarItem.text = '$(sync~spin) ExploUtor: Connecting...';
+            case ConnectionStatus.Listening:
+                this.statusBarItem.text = '$(radio-tower) ExploUtor: Listening';
                 this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-                this.statusBarItem.tooltip = 'Connecting to executor...';
-                this.statusBarItem.command = undefined;
+                this.statusBarItem.tooltip = 'Listening for connections... Click to stop server.';
+                this.statusBarItem.command = 'exploitor.stopServer';
                 break;
 
             case ConnectionStatus.Disconnected:
-                this.statusBarItem.text = '$(circle-slash) ExploUtor: Disconnected';
+                this.statusBarItem.text = '$(circle-slash) ExploUtor: Stopped';
                 this.statusBarItem.backgroundColor = undefined;
-                this.statusBarItem.tooltip = 'Not connected to executor. Click to connect.';
-                this.statusBarItem.command = 'exploitor.connectExecutor';
+                this.statusBarItem.tooltip = 'Server stopped. Click to start.';
+                this.statusBarItem.command = 'exploitor.startServer';
                 break;
 
             case ConnectionStatus.Error:
                 this.statusBarItem.text = '$(error) ExploUtor: Error';
                 this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-                this.statusBarItem.tooltip = 'Connection error. Click to reconnect.';
-                this.statusBarItem.command = 'exploitor.connectExecutor';
+                this.statusBarItem.tooltip = 'Server error. Click to restart.';
+                this.statusBarItem.command = 'exploitor.startServer';
                 break;
         }
     }

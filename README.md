@@ -376,6 +376,11 @@ npm install -g vsce
 vsce package
 ```
 
+## Community
+
+Join our Discord community for support, updates, and to chat with other developers:
+[https://discord.gg/Kc8Gt8apUD](https://discord.gg/Kc8Gt8apUD)
+
 ## License
 
 MIT

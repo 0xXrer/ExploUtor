@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
-import WebSocket from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 
 export enum ConnectionStatus {
     Connected = 'connected',
     Disconnected = 'disconnected',
-    Connecting = 'connecting',
+    Listening = 'listening',
     Error = 'error'
 }
 
@@ -29,12 +29,8 @@ export interface ExecutorMessage {
 }
 
 export class WebSocketManager {
-    private ws?: WebSocket;
-    private reconnectTimer?: NodeJS.Timeout;
-    private heartbeatTimer?: NodeJS.Timeout;
-    private readonly reconnectInterval = 5000;
-    private readonly heartbeatInterval = 30000;
-
+    private wss?: WebSocketServer;
+    private activeSocket?: WebSocket;
     private _status: ConnectionStatus = ConnectionStatus.Disconnected;
     private _onStatusChange = new vscode.EventEmitter<ConnectionStatus>();
     private _onMessage = new vscode.EventEmitter<ExecutorMessage>();
@@ -44,7 +40,7 @@ export class WebSocketManager {
 
     constructor(
         private readonly outputChannel: vscode.OutputChannel
-    ) {}
+    ) { }
 
     public get status(): ConnectionStatus {
         return this._status;
@@ -58,77 +54,91 @@ export class WebSocketManager {
         }
     }
 
-    public async connect(host: string, port: number): Promise<void> {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.outputChannel.appendLine('[WebSocket] Already connected');
+    public async startServer(port: number): Promise<void> {
+        if (this.wss) {
+            this.outputChannel.appendLine('[WebSocket] Server already running');
             return;
         }
 
-        this.setStatus(ConnectionStatus.Connecting);
-        const url = `ws://${host}:${port}`;
-        this.outputChannel.appendLine(`[WebSocket] Connecting to ${url}...`);
-
         try {
-            this.ws = new WebSocket(url);
+            this.wss = new WebSocketServer({ port });
+            this.setStatus(ConnectionStatus.Listening);
+            this.outputChannel.appendLine(`[WebSocket] Server listening on port ${port}`);
 
-            this.ws.on('open', () => {
-                this.setStatus(ConnectionStatus.Connected);
-                this.outputChannel.appendLine('[WebSocket] Connected successfully');
-                this.startHeartbeat();
-                this.stopReconnect();
+            this.wss.on('connection', (ws: WebSocket) => {
+                this.handleConnection(ws);
             });
 
-            this.ws.on('message', (data: WebSocket.Data) => {
-                try {
-                    const message: ExecutorMessage = JSON.parse(data.toString());
-                    this.outputChannel.appendLine(`[WebSocket] Received: ${JSON.stringify(message)}`);
-                    this._onMessage.fire(message);
-                } catch (err) {
-                    this.outputChannel.appendLine(`[WebSocket] Failed to parse message: ${err}`);
-                }
-            });
-
-            this.ws.on('error', (err) => {
-                this.outputChannel.appendLine(`[WebSocket] Error: ${err.message}`);
+            this.wss.on('error', (err) => {
+                this.outputChannel.appendLine(`[WebSocket] Server error: ${err.message}`);
                 this.setStatus(ConnectionStatus.Error);
             });
 
-            this.ws.on('close', () => {
-                this.outputChannel.appendLine('[WebSocket] Connection closed');
+            this.wss.on('close', () => {
+                this.outputChannel.appendLine('[WebSocket] Server closed');
                 this.setStatus(ConnectionStatus.Disconnected);
-                this.stopHeartbeat();
-                this.startReconnect(host, port);
             });
 
         } catch (err) {
-            this.outputChannel.appendLine(`[WebSocket] Connection failed: ${err}`);
+            this.outputChannel.appendLine(`[WebSocket] Failed to start server: ${err}`);
             this.setStatus(ConnectionStatus.Error);
             throw err;
         }
     }
 
-    public disconnect(): void {
-        this.stopReconnect();
-        this.stopHeartbeat();
+    private handleConnection(ws: WebSocket) {
+        this.outputChannel.appendLine('[WebSocket] Client connected');
+        this.activeSocket = ws;
+        this.setStatus(ConnectionStatus.Connected);
 
-        if (this.ws) {
-            this.ws.close();
-            this.ws = undefined;
+        ws.on('message', (data: Buffer) => {
+            try {
+                const message: ExecutorMessage = JSON.parse(data.toString());
+                // Filter out heartbeats to avoid log spam
+                if (message.type !== 'heartbeat') {
+                    this.outputChannel.appendLine(`[WebSocket] Received: ${JSON.stringify(message)}`);
+                }
+                this._onMessage.fire(message);
+            } catch (err) {
+                this.outputChannel.appendLine(`[WebSocket] Failed to parse message: ${err}`);
+            }
+        });
+
+        ws.on('close', () => {
+            this.outputChannel.appendLine('[WebSocket] Client disconnected');
+            if (this.activeSocket === ws) {
+                this.activeSocket = undefined;
+                this.setStatus(ConnectionStatus.Listening);
+            }
+        });
+
+        ws.on('error', (err) => {
+            this.outputChannel.appendLine(`[WebSocket] Client error: ${err.message}`);
+        });
+    }
+
+    public stopServer(): void {
+        if (this.wss) {
+            this.wss.close();
+            this.wss = undefined;
         }
-
+        if (this.activeSocket) {
+            this.activeSocket.terminate();
+            this.activeSocket = undefined;
+        }
         this.setStatus(ConnectionStatus.Disconnected);
     }
 
     public async send(message: ExecutorMessage): Promise<void> {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            throw new Error('WebSocket is not connected');
+        if (!this.activeSocket || this.activeSocket.readyState !== WebSocket.OPEN) {
+            throw new Error('No active client connection');
         }
 
         return new Promise((resolve, reject) => {
             const data = JSON.stringify(message);
             this.outputChannel.appendLine(`[WebSocket] Sending: ${data}`);
 
-            this.ws!.send(data, (err) => {
+            this.activeSocket!.send(data, (err) => {
                 if (err) {
                     this.outputChannel.appendLine(`[WebSocket] Send failed: ${err.message}`);
                     reject(err);
@@ -139,43 +149,8 @@ export class WebSocketManager {
         });
     }
 
-    private startHeartbeat(): void {
-        this.stopHeartbeat();
-        this.heartbeatTimer = setInterval(() => {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.send({ type: 'heartbeat' }).catch(() => {
-                    this.outputChannel.appendLine('[WebSocket] Heartbeat failed');
-                });
-            }
-        }, this.heartbeatInterval);
-    }
-
-    private stopHeartbeat(): void {
-        if (this.heartbeatTimer) {
-            clearInterval(this.heartbeatTimer);
-            this.heartbeatTimer = undefined;
-        }
-    }
-
-    private startReconnect(host: string, port: number): void {
-        this.stopReconnect();
-        this.reconnectTimer = setTimeout(() => {
-            this.outputChannel.appendLine('[WebSocket] Attempting to reconnect...');
-            this.connect(host, port).catch(() => {
-                // Reconnect will be attempted again on close event
-            });
-        }, this.reconnectInterval);
-    }
-
-    private stopReconnect(): void {
-        if (this.reconnectTimer) {
-            clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = undefined;
-        }
-    }
-
     public dispose(): void {
-        this.disconnect();
+        this.stopServer();
         this._onStatusChange.dispose();
         this._onMessage.dispose();
     }

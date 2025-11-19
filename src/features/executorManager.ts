@@ -129,16 +129,16 @@ export class ExecutorManager {
 
         vscode.window.showInformationMessage(`Switched to executor: ${profile.name}`);
 
-        // Reconnect if already connected
-        if (this.wsManager.status === 'connected') {
-            const reconnect = await vscode.window.showInformationMessage(
-                'Reconnect to the new executor?',
+        // Restart server if running
+        if (this.wsManager.status !== 'disconnected') {
+            const restart = await vscode.window.showInformationMessage(
+                'Restart server on new port?',
                 'Yes', 'No'
             );
 
-            if (reconnect === 'Yes') {
-                await this.wsManager.disconnect();
-                await this.wsManager.connect(profile.host, profile.port);
+            if (restart === 'Yes') {
+                this.wsManager.stopServer();
+                await this.wsManager.startServer(profile.port);
             }
         }
     }

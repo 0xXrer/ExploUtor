@@ -1,53 +1,31 @@
 --[[
-    ExploUtor Executor-Side WebSocket Server
+    ExploUtor Executor-Side WebSocket Client
 
-    This script runs inside the Roblox executor and listens for commands
-    from the VSCode extension via WebSocket on port 9999.
+    This script runs inside the Roblox executor and connects to the
+    VSCode extension via WebSocket on port 9999.
 
     Requirements:
-    - WebSocket library (executor-specific)
-    - JSON encode/decode functions
+    - WebSocket.connect (UNC Standard)
+    - HttpService (for JSON)
 
     Usage:
-    1. Load this script in your executor
-    2. Execute it to start the WebSocket server
-    3. Connect from VSCode using "Connect to Executor" command
+    1. Start the VSCode extension (Server)
+    2. Execute this script in your executor
 ]]
 
 local HttpService = game:GetService("HttpService")
 
 -- Configuration
 local CONFIG = {
-    HOST = "0.0.0.0",
-    PORT = 9999,
-    HEARTBEAT_INTERVAL = 30
+    URL = "ws://localhost:9999",
+    RECONNECT_INTERVAL = 5
 }
 
--- WebSocket server instance (replace with your executor's WebSocket library)
-local WebSocketServer
-local activeConnection
+local ws
+local connected = false
 
 -- Message handlers
 local messageHandlers = {}
-
--- Initialize WebSocket (executor-specific implementation)
-local function initWebSocket()
-    -- Example using a hypothetical WebSocket library
-    -- Replace this with your executor's actual WebSocket implementation
-
-    -- For Synapse X:
-    -- WebSocketServer = syn.websocket.listen(CONFIG.PORT)
-
-    -- For Script-Ware:
-    -- WebSocketServer = http.listen(CONFIG.PORT)
-
-    -- For generic executors with WebSocket support:
-    -- WebSocketServer = websocket.listen(CONFIG.PORT)
-
-    print("[ExploUtor] WebSocket server listening on port " .. CONFIG.PORT)
-
-    return WebSocketServer
-end
 
 -- Execute Luau code safely
 local function executeCode(code)
@@ -99,13 +77,15 @@ messageHandlers["bundle_execute"] = function(message)
     }
 end
 
-messageHandlers["heartbeat"] = function(message)
-    -- Just acknowledge heartbeat
+messageHandlers["debug_event"] = function(message)
+    -- Placeholder for debug event handling
+    -- In a real implementation, this would interact with the debug library
+    print("[ExploUtor] Received debug event: " .. tostring(message.debugType))
     return nil
 end
 
 -- Handle incoming WebSocket message
-local function handleMessage(connection, data)
+local function handleMessage(data)
     local success, message = pcall(function()
         return HttpService:JSONDecode(data)
     end)
@@ -115,138 +95,91 @@ local function handleMessage(connection, data)
         return
     end
 
-    print("[ExploUtor] Received message type: " .. tostring(message.type))
+    -- print("[ExploUtor] Received message type: " .. tostring(message.type))
 
     local handler = messageHandlers[message.type]
     if handler then
         local response = handler(message)
 
-        if response then
+        if response and ws then
             local responseJson = HttpService:JSONEncode(response)
-            connection:Send(responseJson)
-            print("[ExploUtor] Sent response")
+            ws:Send(responseJson)
+            -- print("[ExploUtor] Sent response")
         end
-    else
+    elseif message.type ~= "heartbeat" then
         warn("[ExploUtor] Unknown message type: " .. tostring(message.type))
     end
 end
 
--- Main server loop
-local function startServer()
-    print("[ExploUtor] Starting WebSocket server...")
+-- Connect to WebSocket Server
+local function connect()
+    print("[ExploUtor] Connecting to " .. CONFIG.URL .. "...")
 
-    local server = initWebSocket()
+    local success, socket = pcall(function()
+        return WebSocket.connect(CONFIG.URL)
+    end)
 
-    if not server then
-        error("[ExploUtor] Failed to initialize WebSocket server")
+    if not success then
+        warn("[ExploUtor] Connection failed: " .. tostring(socket))
+        return false
     end
 
-    -- Handle new connections
-    server.OnConnection = function(connection)
-        print("[ExploUtor] New connection from: " .. tostring(connection.RemoteAddress))
-        activeConnection = connection
+    ws = socket
+    connected = true
+    print("[ExploUtor] Connected to VSCode!")
 
-        -- Send welcome message
-        local welcome = {
-            type = "response",
-            success = true,
-            output = "Connected to ExploUtor executor"
-        }
-        connection:Send(HttpService:JSONEncode(welcome))
+    ws.OnMessage:Connect(function(message)
+        handleMessage(message)
+    end)
 
-        -- Handle incoming messages
-        connection.OnMessage = function(data)
-            handleMessage(connection, data)
+    ws.OnClose:Connect(function()
+        print("[ExploUtor] Disconnected from VSCode")
+        connected = false
+        ws = nil
+        
+        -- Attempt reconnect
+        task.delay(CONFIG.RECONNECT_INTERVAL, function()
+            if not connected then
+                connect()
+            end
+        end)
+    end)
+
+    -- Send hello/handshake
+    local handshake = {
+        type = "response",
+        success = true,
+        output = "Connected to ExploUtor executor (" .. (identifyexecutor and identifyexecutor() or "Unknown") .. ")"
+    }
+    ws:Send(HttpService:JSONEncode(handshake))
+
+    return true
+end
+
+-- Start connection
+task.spawn(function()
+    if not connect() then
+        -- If initial connection fails, retry loop
+        while not connected do
+            task.wait(CONFIG.RECONNECT_INTERVAL)
+            connect()
         end
-
-        -- Handle disconnection
-        connection.OnClose = function()
-            print("[ExploUtor] Connection closed")
-            activeConnection = nil
-        end
     end
-
-    print("[ExploUtor] Server started successfully!")
-    print("[ExploUtor] Waiting for connections on ws://" .. CONFIG.HOST .. ":" .. CONFIG.PORT)
-end
-
--- Enhanced execution context with better error handling
-local function createSafeExecutionEnvironment()
-    local env = getgenv()
-
-    -- Add custom print that captures output
-    local outputBuffer = {}
-
-    env._exploUtor_print = print
-    env.print = function(...)
-        local args = {...}
-        local output = table.concat(args, " ")
-        table.insert(outputBuffer, output)
-        env._exploUtor_print(...)
-    end
-
-    env._exploUtor_getOutput = function()
-        return table.concat(outputBuffer, "\n")
-    end
-
-    env._exploUtor_clearOutput = function()
-        outputBuffer = {}
-    end
-
-    return env
-end
-
--- Alternative: HTTP-based executor (if WebSocket not available)
-local function startHttpServer()
-    print("[ExploUtor] WebSocket not available, using HTTP polling...")
-
-    -- This is a fallback for executors without WebSocket support
-    -- Implement HTTP POST endpoint that polls for commands
-
-    warn("[ExploUtor] HTTP polling not implemented. Please use an executor with WebSocket support.")
-end
-
--- Start the appropriate server
-local success, err = pcall(function()
-    startServer()
 end)
 
-if not success then
-    warn("[ExploUtor] Failed to start WebSocket server: " .. tostring(err))
-    warn("[ExploUtor] Make sure your executor supports WebSocket connections")
+-- Enhanced execution context
+local env = getgenv()
+env._exploUtor_print = print
+env.print = function(...)
+    local args = {...}
+    local output = table.concat(args, " ")
+    -- Send output back to VSCode if connected
+    if connected and ws then
+        local msg = {
+            type = "response",
+            output = output
+        }
+        ws:Send(HttpService:JSONEncode(msg))
+    end
+    env._exploUtor_print(...)
 end
-
---[[
-    Example WebSocket implementations for different executors:
-
-    1. Synapse X:
-    ```lua
-    local ws = syn.websocket.listen(9999)
-    ws.OnConnection:Connect(function(conn)
-        conn.OnMessage:Connect(function(msg)
-            -- Handle message
-        end)
-    end)
-    ```
-
-    2. Script-Ware:
-    ```lua
-    local server = http.listen(9999)
-    server.on_connection(function(conn)
-        conn.on_message(function(msg)
-            -- Handle message
-        end)
-    end)
-    ```
-
-    3. KRNL/Fluxus (using WebSocket library):
-    ```lua
-    local WebSocket = loadstring(game:HttpGet("https://raw.githubusercontent.com/your-ws-lib/main.lua"))()
-    local server = WebSocket.Server.new(9999)
-    server:on("connection", function(conn)
-        conn:on("message", function(msg)
-            -- Handle message
-        end)
-    end)
-    ```
-]]

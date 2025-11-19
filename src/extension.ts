@@ -107,13 +107,12 @@ export async function activate(context: vscode.ExtensionContext) {
         )
     );
 
-    // Auto-connect on activation if configured
+    // Auto-start server on activation if configured
     const config = vscode.workspace.getConfiguration('exploitor');
-    const autoConnect = config.get<boolean>('executor.autoConnect', false);
-    if (autoConnect) {
-        const host = config.get<string>('executor.host', 'localhost');
+    const autoStart = config.get<boolean>('server.autoStart', true);
+    if (autoStart) {
         const port = config.get<number>('executor.port', 9999);
-        connectToExecutor(host, port);
+        startWebSocketServer(port);
     }
 
     outputManager.success('ExploUtor activated successfully');
@@ -152,27 +151,26 @@ function registerLanguageFeatures(context: vscode.ExtensionContext) {
 }
 
 function registerCommands(context: vscode.ExtensionContext) {
-    // Connect command
+    // Start Server command
     context.subscriptions.push(
-        vscode.commands.registerCommand('exploitor.connectExecutor', async () => {
+        vscode.commands.registerCommand('exploitor.startServer', async () => {
             const config = vscode.workspace.getConfiguration('exploitor');
-            const host = config.get<string>('executor.host', 'localhost');
             const port = config.get<number>('executor.port', 9999);
-            await connectToExecutor(host, port);
+            await startWebSocketServer(port);
         })
     );
 
-    // Disconnect command
+    // Stop Server command
     context.subscriptions.push(
-        vscode.commands.registerCommand('exploitor.disconnectExecutor', () => {
-            wsManager.disconnect();
-            vscode.window.showInformationMessage('Disconnected from executor');
+        vscode.commands.registerCommand('exploitor.stopServer', () => {
+            wsManager.stopServer();
+            vscode.window.showInformationMessage('WebSocket server stopped');
         })
     );
 
     // Execute file command
     context.subscriptions.push(
-        vscode.commands.registerCommand('exploitor.execute', async () => {
+        vscode.commands.registerCommand('exploitor.executeFile', async (uri: vscode.Uri) => {
             await executeCommand(false, false);
         })
     );
@@ -279,15 +277,15 @@ function registerCommands(context: vscode.ExtensionContext) {
     outputManager.info('Commands registered');
 }
 
-async function connectToExecutor(host: string, port: number): Promise<void> {
+async function startWebSocketServer(port: number): Promise<void> {
     try {
-        outputManager.info(`Connecting to executor at ${host}:${port}...`);
-        await wsManager.connect(host, port);
-        vscode.window.showInformationMessage(`Connected to executor at ${host}:${port}`);
+        outputManager.info(`Starting WebSocket server on port ${port}...`);
+        await wsManager.startServer(port);
+        vscode.window.showInformationMessage(`ExploUtor server listening on port ${port}`);
     } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        outputManager.error(`Failed to connect: ${errorMsg}`);
-        vscode.window.showErrorMessage(`Failed to connect to executor: ${errorMsg}`);
+        outputManager.error(`Failed to start server: ${errorMsg}`);
+        vscode.window.showErrorMessage(`Failed to start WebSocket server: ${errorMsg}`);
     }
 }
 
