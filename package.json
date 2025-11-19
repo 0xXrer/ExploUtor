@@ -1,0 +1,139 @@
+{
+  "name": "exploitor",
+  "displayName": "ExploUtor",
+  "description": "Roblox exploit development environment with Luau LSP and WebSocket executor integration",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Debuggers"
+  ],
+  "activationEvents": [
+    "onLanguage:luau"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "luau",
+        "aliases": [
+          "Luau",
+          "luau"
+        ],
+        "extensions": [
+          ".luau",
+          ".lua"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "luau",
+        "scopeName": "source.luau",
+        "path": "./syntaxes/luau.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "exploitor.execute",
+        "title": "Execute Script",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.executeSelection",
+        "title": "Execute Selection",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.bundleExecute",
+        "title": "Bundle and Execute",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.connectExecutor",
+        "title": "Connect to Executor",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.disconnectExecutor",
+        "title": "Disconnect from Executor",
+        "category": "ExploUtor"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "exploitor.execute",
+        "key": "f5",
+        "when": "editorLangId == luau"
+      },
+      {
+        "command": "exploitor.executeSelection",
+        "key": "shift+f5",
+        "when": "editorLangId == luau && editorHasSelection"
+      }
+    ],
+    "configuration": {
+      "title": "ExploUtor",
+      "properties": {
+        "exploitor.executor.host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "Executor WebSocket host"
+        },
+        "exploitor.executor.port": {
+          "type": "number",
+          "default": 9999,
+          "description": "Executor WebSocket port"
+        },
+        "exploitor.bundler.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic bundling before execution"
+        },
+        "exploitor.bundler.tool": {
+          "type": "string",
+          "enum": [
+            "wax",
+            "darklua"
+          ],
+          "default": "darklua",
+          "description": "Bundler tool to use"
+        },
+        "exploitor.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Luau LSP integration"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.56.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "ws": "^8.16.0"
+  }
+}
