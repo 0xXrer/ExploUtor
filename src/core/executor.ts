@@ -28,7 +28,7 @@ export class ExecutionEngine {
         private readonly outputChannel: vscode.OutputChannel
     ) {
         // Listen for responses from executor
-        this.wsManager.onMessage.event(this.handleMessage.bind(this));
+        this.wsManager.onMessage(this.handleMessage.bind(this));
     }
 
     /**

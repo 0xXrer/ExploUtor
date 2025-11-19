@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { WebSocketManager } from './core/websocket';
+import { WebSocketManager, ConnectionStatus } from './core/websocket';
 import { BundlerIntegration } from './core/bundler';
 import { ExecutionEngine } from './core/executor';
 import { LuauLSPProvider } from './language/luauProvider';
@@ -30,7 +30,7 @@ export async function activate(context: vscode.ExtensionContext) {
     executor = new ExecutionEngine(wsManager, bundler, outputManager.channel);
 
     // Update status bar when connection changes
-    wsManager.onStatusChange.event(status => {
+    wsManager.onStatusChange((status: ConnectionStatus) => {
         statusBar.updateStatus(status);
     });
 
@@ -155,7 +155,7 @@ async function executeCommand(bundle: boolean, selection: boolean): Promise<void
     }
 
     // Check connection
-    if (wsManager.status !== 'connected') {
+    if (wsManager.status !== ConnectionStatus.Connected) {
         const result = await vscode.window.showWarningMessage(
             'Not connected to executor. Connect now?',
             'Connect',
@@ -167,7 +167,9 @@ async function executeCommand(bundle: boolean, selection: boolean): Promise<void
             // Wait a bit for connection
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            if (wsManager.status !== 'connected') {
+            // Re-check connection status (use type assertion to bypass narrowing)
+            const currentStatus: ConnectionStatus = wsManager.status as ConnectionStatus;
+            if (currentStatus !== ConnectionStatus.Connected) {
                 vscode.window.showErrorMessage('Failed to connect to executor');
                 return;
             }
