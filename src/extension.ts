@@ -6,6 +6,7 @@ import { LuauLSPProvider } from './language/luauProvider';
 import { ExploitCompletionProvider, ExploitHoverProvider, ExploitSignatureHelpProvider } from './language/completions';
 import { StatusBarManager } from './ui/statusBar';
 import { OutputChannelManager } from './ui/outputChannel';
+import { ExploUtorExplorerProvider } from './ui/explorerProvider';
 
 let wsManager: WebSocketManager;
 let bundler: BundlerIntegration;
@@ -13,6 +14,7 @@ let executor: ExecutionEngine;
 let lspProvider: LuauLSPProvider;
 let statusBar: StatusBarManager;
 let outputManager: OutputChannelManager;
+let explorerProvider: ExploUtorExplorerProvider;
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('ExploUtor extension is now active');
@@ -24,14 +26,31 @@ export async function activate(context: vscode.ExtensionContext) {
     // Initialize status bar
     statusBar = new StatusBarManager();
 
+    // Initialize explorer provider
+    explorerProvider = new ExploUtorExplorerProvider();
+    const treeView = vscode.window.createTreeView('exploUtorExplorer', {
+        treeDataProvider: explorerProvider,
+        showCollapseAll: true
+    });
+    context.subscriptions.push(treeView);
+
     // Initialize core components
     wsManager = new WebSocketManager(outputManager.channel);
     bundler = new BundlerIntegration(outputManager.channel);
     executor = new ExecutionEngine(wsManager, bundler, outputManager.channel);
 
-    // Update status bar when connection changes
+    // Update status bar and explorer when connection changes
     wsManager.onStatusChange((status: ConnectionStatus) => {
         statusBar.updateStatus(status);
+
+        // Update explorer provider with connection info
+        const config = vscode.workspace.getConfiguration('exploitor');
+        explorerProvider.updateConnectionInfo({
+            status: status as any,
+            host: config.get<string>('executor.host', 'localhost'),
+            port: config.get<number>('executor.port', 9999),
+            lastConnected: status === ConnectionStatus.Connected ? new Date() : undefined
+        });
     });
 
     // Initialize LSP provider
@@ -126,6 +145,22 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
+    // Refresh explorer command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.refreshExplorer', () => {
+            explorerProvider.refresh();
+            vscode.window.showInformationMessage('Explorer refreshed');
+        })
+    );
+
+    // Clear history command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.clearHistory', () => {
+            explorerProvider.clearHistory();
+            vscode.window.showInformationMessage('Execution history cleared');
+        })
+    );
+
     outputManager.info('Commands registered');
 }
 
@@ -189,6 +224,18 @@ async function executeCommand(bundle: boolean, selection: boolean): Promise<void
             result = await executor.executeFile(editor.document, bundle);
         }
 
+        // Add to execution history
+        const fileName = editor.document.fileName.split('/').pop() || 'unknown';
+        explorerProvider.addExecutionHistory({
+            timestamp: new Date(),
+            fileName,
+            success: result.success,
+            bundled: bundle,
+            selection: selection,
+            output: result.output,
+            error: result.error
+        });
+
         if (result.success) {
             vscode.window.showInformationMessage('Execution completed successfully');
             outputManager.success('Execution completed');
@@ -198,6 +245,18 @@ async function executeCommand(bundle: boolean, selection: boolean): Promise<void
         }
     } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
+
+        // Add failed execution to history
+        const fileName = editor.document.fileName.split('/').pop() || 'unknown';
+        explorerProvider.addExecutionHistory({
+            timestamp: new Date(),
+            fileName,
+            success: false,
+            bundled: bundle,
+            selection: selection,
+            error: errorMsg
+        });
+
         vscode.window.showErrorMessage(`Execution error: ${errorMsg}`);
         outputManager.error(`Execution error: ${errorMsg}`);
     }

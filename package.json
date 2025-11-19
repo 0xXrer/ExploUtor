@@ -65,8 +65,53 @@
         "command": "exploitor.disconnectExecutor",
         "title": "Disconnect from Executor",
         "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.refreshExplorer",
+        "title": "Refresh Explorer",
+        "category": "ExploUtor",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "exploitor.clearHistory",
+        "title": "Clear Execution History",
+        "category": "ExploUtor",
+        "icon": "$(clear-all)"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "exploUtor",
+          "title": "ExploUtor",
+          "icon": "$(debug-alt)"
+        }
+      ]
+    },
+    "views": {
+      "exploUtor": [
+        {
+          "id": "exploUtorExplorer",
+          "name": "Explorer",
+          "icon": "$(debug-alt)",
+          "contextualTitle": "ExploUtor Explorer"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "exploitor.refreshExplorer",
+          "when": "view == exploUtorExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.clearHistory",
+          "when": "view == exploUtorExplorer",
+          "group": "navigation"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "exploitor.execute",
