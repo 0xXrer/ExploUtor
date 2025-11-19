@@ -7,6 +7,12 @@ import { ExploitCompletionProvider, ExploitHoverProvider, ExploitSignatureHelpPr
 import { StatusBarManager } from './ui/statusBar';
 import { OutputChannelManager } from './ui/outputChannel';
 import { ExploUtorExplorerProvider } from './ui/explorerProvider';
+import { LiveReloadManager } from './features/liveReload';
+import { ErrorBeautifier } from './features/errorBeautifier';
+import { ExecutorManager } from './features/executorManager';
+import { ScriptPacker } from './features/scriptPacker';
+import { VariableInspector } from './features/variableInspector';
+import { Obfuscator } from './features/obfuscator';
 
 let wsManager: WebSocketManager;
 let bundler: BundlerIntegration;
@@ -15,6 +21,12 @@ let lspProvider: LuauLSPProvider;
 let statusBar: StatusBarManager;
 let outputManager: OutputChannelManager;
 let explorerProvider: ExploUtorExplorerProvider;
+let liveReloadManager: LiveReloadManager;
+let errorBeautifier: ErrorBeautifier;
+let executorManager: ExecutorManager;
+let scriptPacker: ScriptPacker;
+let variableInspector: VariableInspector;
+let obfuscator: Obfuscator;
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('ExploUtor extension is now active');
@@ -56,6 +68,16 @@ export async function activate(context: vscode.ExtensionContext) {
     // Initialize LSP provider
     lspProvider = new LuauLSPProvider(context, outputManager.channel);
     await lspProvider.activate();
+
+    // Initialize new features
+    liveReloadManager = new LiveReloadManager(executor, outputManager);
+    errorBeautifier = new ErrorBeautifier();
+    executorManager = new ExecutorManager(wsManager);
+    scriptPacker = new ScriptPacker(outputManager);
+    variableInspector = new VariableInspector(wsManager, outputManager);
+    obfuscator = new Obfuscator(outputManager);
+
+    outputManager.info('All features initialized');
 
     // Register language features
     registerLanguageFeatures(context);
@@ -161,6 +183,48 @@ function registerCommands(context: vscode.ExtensionContext) {
         })
     );
 
+    // Quick Execute command (same as execute but for context menu)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.quickExecute', async () => {
+            await executeCommand(false, false);
+        })
+    );
+
+    // Switch Executor command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.switchExecutor', async () => {
+            await executorManager.switchExecutor();
+        })
+    );
+
+    // Pack Scripts command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.packScripts', async () => {
+            await scriptPacker.packScripts();
+        })
+    );
+
+    // Inspect Variables command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.inspectVariables', async () => {
+            await variableInspector.inspectVariables();
+        })
+    );
+
+    // Obfuscate Script command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.obfuscateScript', async () => {
+            await obfuscator.obfuscateScript();
+        })
+    );
+
+    // Toggle Live Reload command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.toggleLiveReload', () => {
+            liveReloadManager.toggle();
+        })
+    );
+
     outputManager.info('Commands registered');
 }
 
@@ -239,9 +303,16 @@ async function executeCommand(bundle: boolean, selection: boolean): Promise<void
         if (result.success) {
             vscode.window.showInformationMessage('Execution completed successfully');
             outputManager.success('Execution completed');
+            if (result.output) {
+                outputManager.log(result.output);
+            }
         } else {
-            vscode.window.showErrorMessage(`Execution failed: ${result.error}`);
-            outputManager.error(`Execution failed: ${result.error}`);
+            // Use error beautifier to format the error
+            const beautified = errorBeautifier.beautify(result.error || 'Unknown error');
+
+            vscode.window.showErrorMessage(`Execution failed: ${beautified.errorType}`);
+            outputManager.error('Execution failed:');
+            outputManager.log(beautified.formatted);
         }
     } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -257,8 +328,12 @@ async function executeCommand(bundle: boolean, selection: boolean): Promise<void
             error: errorMsg
         });
 
-        vscode.window.showErrorMessage(`Execution error: ${errorMsg}`);
-        outputManager.error(`Execution error: ${errorMsg}`);
+        // Use error beautifier for execution errors
+        const beautified = errorBeautifier.beautify(errorMsg);
+
+        vscode.window.showErrorMessage(`Execution error: ${beautified.errorType}`);
+        outputManager.error('Execution error:');
+        outputManager.log(beautified.formatted);
     }
 }
 
@@ -266,6 +341,14 @@ export async function deactivate() {
     outputManager.info('ExploUtor is deactivating...');
 
     // Cleanup
+    if (liveReloadManager) {
+        liveReloadManager.dispose();
+    }
+
+    if (variableInspector) {
+        variableInspector.dispose();
+    }
+
     if (executor) {
         executor.dispose();
     }

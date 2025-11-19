@@ -20,6 +20,63 @@ VSCode extension for Roblox exploit development with Luau LSP integration, WebSo
 6. **Syntax Highlighting** - Luau syntax with exploit keyword support
 7. **Status Bar** - Real-time connection status indicator
 
+### Developer Tools (NEW!)
+8. **Snippets System** - 20+ ready-to-use code snippets for common patterns:
+   - Function hooking (hookfunction, hookmetamethod, __namecall, __index, __newindex)
+   - ESP implementations (box, tracers)
+   - Remote spy and anti-kick
+   - Metatable manipulation
+   - Closure inspection
+   - GC scanning
+   - And many more!
+
+9. **Live Reload** - Auto-execute scripts on file save
+   - Configurable debounce time
+   - Toggle on/off via command
+   - Disable by default to prevent unwanted executions
+
+10. **Error Beautifier** - Professional error formatting
+    - Parses error types (Index Error, Call Error, Syntax Error, etc.)
+    - Extracts file location and line numbers
+    - Shows stack traces
+    - Provides helpful suggestions
+    - Formatted output with clear sections
+
+11. **Quick Actions** - Context menu integration
+    - Right-click in editor for quick access
+    - Execute current file
+    - Execute selection
+    - Bundle and execute
+    - Obfuscate script
+    - Pack multiple scripts
+    - Inspect runtime variables
+
+12. **Multi-Executor Support** - Manage multiple executor profiles
+    - Switch between different executors easily
+    - Save multiple host:port configurations
+    - Quick profile switching
+    - Auto-reconnect option
+
+13. **Script Packer** - Combine multiple scripts into one
+    - Module loader system
+    - Optional minification
+    - File comments in output
+    - Perfect for distributing complex scripts
+
+14. **Variable Inspector** - Real-time runtime inspection
+    - View global variables via WebSocket
+    - Beautiful webview interface
+    - Refresh on demand
+    - Type and value display
+    - Filters out internal variables
+
+15. **Script Obfuscator** - Basic obfuscation features
+    - Variable renaming
+    - Comment removal
+    - String encoding (Base64/Hex)
+    - Whitespace minification
+    - Links to advanced obfuscators (Ironbrew, Luraph, PSU)
+
 ## Installation
 
 1. Clone this repository
@@ -60,11 +117,38 @@ Settings available in VSCode (`Ctrl+,` → search "ExploUtor"):
 
 ```json
 {
+  // Executor Connection
   "exploitor.executor.host": "localhost",
   "exploitor.executor.port": 9999,
+
+  // Bundler Settings
   "exploitor.bundler.enabled": true,
   "exploitor.bundler.tool": "darklua", // or "wax"
-  "exploitor.lsp.enabled": true
+
+  // LSP Settings
+  "exploitor.lsp.enabled": true,
+
+  // Live Reload (NEW!)
+  "exploitor.liveReload.enabled": false,
+  "exploitor.liveReload.debounce": 500,
+
+  // Error Beautifier (NEW!)
+  "exploitor.errorBeautifier.enabled": true,
+
+  // Multi-Executor Support (NEW!)
+  "exploitor.executors": [
+    {
+      "name": "Default",
+      "host": "localhost",
+      "port": 9999
+    },
+    {
+      "name": "Remote",
+      "host": "192.168.1.100",
+      "port": 8888
+    }
+  ],
+  "exploitor.activeExecutor": "Default"
 }
 ```
 
@@ -179,6 +263,39 @@ end
 | Bundle and Execute | - | Bundle then execute |
 | Connect to Executor | - | Connect to WebSocket server |
 | Disconnect from Executor | - | Disconnect from server |
+| **Quick Execute** | - | **Execute via context menu** |
+| **Switch Executor** | - | **Switch between executor profiles** |
+| **Pack Scripts** | - | **Combine multiple scripts into one** |
+| **Inspect Variables** | - | **View runtime global variables** |
+| **Obfuscate Script** | - | **Obfuscate current script** |
+| **Toggle Live Reload** | - | **Enable/disable auto-execution on save** |
+
+## Code Snippets
+
+Type these prefixes in a `.luau` file and press Tab:
+
+| Prefix | Description |
+|--------|-------------|
+| `hookfunc` | Hook a function with hookfunction |
+| `hookmeta` | Hook a metamethod |
+| `hooknamecall` | Hook __namecall metamethod |
+| `hookindex` | Hook __index metamethod |
+| `hooknewindex` | Hook __newindex metamethod |
+| `metatbl` | Create a custom metatable |
+| `espbox` | Create ESP box for players |
+| `esptracer` | Create ESP tracer lines |
+| `remotespy` | Spy on remote events/functions |
+| `antikick` | Anti-kick protection |
+| `scaninstance` | Scan for instances with properties |
+| `closurelog` | Log detailed closure information |
+| `bypasstextfilter` | Bypass text filtering |
+| `getcaller` | Get calling script info |
+| `protect` | Protected table pattern |
+| `gcscan` | Scan garbage collector |
+| `getservices` | Get common game services |
+| `connmgr` | Connection manager for cleanup |
+| `safecall` | Safe function call with error handling |
+| `waitforchild` | Wait for child with timeout |
 
 ## Project Structure
 
@@ -192,14 +309,24 @@ ExploUtor/
 │   │   ├── websocket.ts       # WebSocket connection manager
 │   │   ├── executor.ts        # Execution engine
 │   │   └── bundler.ts         # Bundler integration
+│   ├── features/              # NEW: Developer tools
+│   │   ├── liveReload.ts      # Auto-execute on save
+│   │   ├── errorBeautifier.ts # Error formatting
+│   │   ├── executorManager.ts # Multi-executor support
+│   │   ├── scriptPacker.ts    # Multi-script bundling
+│   │   ├── variableInspector.ts # Runtime variable viewer
+│   │   └── obfuscator.ts      # Script obfuscation
 │   ├── language/
 │   │   ├── luauProvider.ts    # LSP provider
 │   │   ├── exploitSignatures.ts # UNC function definitions (100+ functions)
 │   │   └── completions.ts     # IntelliSense providers
 │   ├── ui/
+│   │   ├── explorerProvider.ts # Tree view panel
 │   │   ├── statusBar.ts       # Status bar manager
 │   │   └── outputChannel.ts   # Output panel
 │   └── extension.ts           # Entry point
+├── snippets/                  # NEW: Code snippets
+│   └── luau.json              # 20+ ready-to-use snippets
 ├── docs/
 │   └── unc-api/               # UNC API documentation
 │       ├── README.md          # Overview and usage guidelines

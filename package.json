@@ -40,6 +40,12 @@
         "path": "./syntaxes/luau.tmLanguage.json"
       }
     ],
+    "snippets": [
+      {
+        "language": "luau",
+        "path": "./snippets/luau.json"
+      }
+    ],
     "commands": [
       {
         "command": "exploitor.execute",
@@ -77,6 +83,31 @@
         "title": "Clear Execution History",
         "category": "ExploUtor",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "exploitor.quickExecute",
+        "title": "Quick Execute",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.obfuscateScript",
+        "title": "Obfuscate Script",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.packScripts",
+        "title": "Pack Scripts",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.switchExecutor",
+        "title": "Switch Executor",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.inspectVariables",
+        "title": "Inspect Variables",
+        "category": "ExploUtor"
       }
     ],
     "viewsContainers": {
@@ -109,6 +140,38 @@
           "command": "exploitor.clearHistory",
           "when": "view == exploUtorExplorer",
           "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "exploitor.quickExecute",
+          "when": "editorLangId == luau",
+          "group": "exploitor@1"
+        },
+        {
+          "command": "exploitor.executeSelection",
+          "when": "editorLangId == luau && editorHasSelection",
+          "group": "exploitor@2"
+        },
+        {
+          "command": "exploitor.bundleExecute",
+          "when": "editorLangId == luau",
+          "group": "exploitor@3"
+        },
+        {
+          "command": "exploitor.obfuscateScript",
+          "when": "editorLangId == luau",
+          "group": "exploitor@4"
+        },
+        {
+          "command": "exploitor.packScripts",
+          "when": "editorLangId == luau",
+          "group": "exploitor@5"
+        },
+        {
+          "command": "exploitor.inspectVariables",
+          "when": "editorLangId == luau",
+          "group": "exploitor@6"
         }
       ]
     },
@@ -155,6 +218,51 @@
           "type": "boolean",
           "default": true,
           "description": "Enable Luau LSP integration"
+        },
+        "exploitor.liveReload.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-execute script on file save"
+        },
+        "exploitor.liveReload.debounce": {
+          "type": "number",
+          "default": 500,
+          "description": "Debounce time in milliseconds for live reload"
+        },
+        "exploitor.errorBeautifier.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Format executor errors nicely"
+        },
+        "exploitor.executors": {
+          "type": "array",
+          "default": [
+            {
+              "name": "Default",
+              "host": "localhost",
+              "port": 9999
+            }
+          ],
+          "description": "List of executor configurations",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "exploitor.activeExecutor": {
+          "type": "string",
+          "default": "Default",
+          "description": "Currently active executor profile"
         }
       }
     }
