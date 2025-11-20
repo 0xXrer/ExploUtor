@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as luaparse from 'luaparse';
+import { OutputChannelManager } from '../ui/outputChannel';
 
 // --- Obfuscator Implementation ---
 
@@ -14,10 +15,10 @@ export interface ObfuscationOptions {
 }
 
 export class Obfuscator {
-    private outputChannel: any;
+    private outputManager: OutputChannelManager;
 
-    constructor(outputChannel: any) {
-        this.outputChannel = outputChannel;
+    constructor(outputManager: OutputChannelManager) {
+        this.outputManager = outputManager;
     }
 
     public async obfuscateScript(): Promise<void> {
@@ -34,7 +35,7 @@ export class Obfuscator {
             this.saveObfuscated(editor.document, obfuscated);
         } catch (e) {
             vscode.window.showErrorMessage(`Obfuscation failed: ${e}`);
-            this.outputChannel.appendLine(`Error: ${e}`);
+            this.outputManager.error(`Error: ${e}`);
         }
     }
 
@@ -231,7 +232,7 @@ export class Obfuscator {
 
         switch (node.type) {
             case 'Chunk':
-                return node.body.map((s: any) => this.generate(s)).join('\n');
+                return (node.body || []).map((s: any) => this.generate(s)).join('\n');
 
             case 'AssignmentStatement':
                 return this.generateList(node.variables, ', ') + ' = ' + this.generateList(node.init, ', ');
@@ -283,7 +284,7 @@ export class Obfuscator {
                 return this.generate(node.base) + '[' + this.generate(node.index) + ']';
 
             case 'TableConstructorExpression':
-                return '{' + node.fields.map((f: any) => this.generate(f)).join(', ') + '}';
+                return '{' + (node.fields || []).map((f: any) => this.generate(f)).join(', ') + '}';
 
             case 'TableKey':
                 return '[' + this.generate(node.key) + '] = ' + this.generate(node.value);
@@ -340,10 +341,12 @@ export class Obfuscator {
     }
 
     private generateList(list: any[], separator: string): string {
+        if (!list) return '';
         return list.map(i => this.generate(i)).join(separator);
     }
 
     private generateBlock(body: any[]): string {
+        if (!body) return '';
         return body.map(s => this.generate(s)).join(' '); // Minified by default
     }
 
@@ -370,6 +373,6 @@ end
             vscode.window.showTextDocument(doc);
         });
 
-        this.outputChannel.appendLine(`Saved to ${newFileName}`);
+        this.outputManager.success(`Saved to ${newFileName}`);
     }
 }
