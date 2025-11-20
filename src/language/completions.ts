@@ -1,6 +1,80 @@
 import * as vscode from 'vscode';
 import { exploitFunctions, exploitFunctionMap } from './exploitSignatures';
 
+interface ParsedParameter {
+    name: string;
+    type: string;
+    optional: boolean;
+    index: number;
+}
+
+class SignatureParser {
+    static parseParameters(signature: string): ParsedParameter[] {
+        const openParen = signature.indexOf('(');
+        const closeParen = signature.lastIndexOf(')');
+        
+        if (openParen === -1 || closeParen === -1) {
+            return [];
+        }
+
+        const paramString = signature.substring(openParen + 1, closeParen);
+        if (!paramString.trim()) {
+            return [];
+        }
+
+        const params: ParsedParameter[] = [];
+        let currentParam = '';
+        let depth = 0;
+        let index = 0;
+
+        for (let i = 0; i < paramString.length; i++) {
+            const char = paramString[i];
+            
+            if (char === '{' || char === '(' || char === '[') {
+                depth++;
+            } else if (char === '}' || char === ')' || char === ']') {
+                depth--;
+            }
+
+            if (char === ',' && depth === 0) {
+                params.push(this.parseSingleParam(currentParam.trim(), index++));
+                currentParam = '';
+            } else {
+                currentParam += char;
+            }
+        }
+
+        if (currentParam.trim()) {
+            params.push(this.parseSingleParam(currentParam.trim(), index));
+        }
+
+        return params;
+    }
+
+    private static parseSingleParam(param: string, index: number): ParsedParameter {
+        const colonIndex = param.indexOf(':');
+        if (colonIndex === -1) {
+            return {
+                name: param,
+                type: 'any',
+                optional: false,
+                index
+            };
+        }
+
+        const namePart = param.substring(0, colonIndex).trim();
+        const typePart = param.substring(colonIndex + 1).trim();
+        const optional = namePart.endsWith('?') || typePart.endsWith('?');
+
+        return {
+            name: namePart.replace('?', ''),
+            type: typePart,
+            optional,
+            index
+        };
+    }
+}
+
 export class ExploitCompletionProvider implements vscode.CompletionItemProvider {
     provideCompletionItems(
         document: vscode.TextDocument,
@@ -8,6 +82,14 @@ export class ExploitCompletionProvider implements vscode.CompletionItemProvider 
         token: vscode.CancellationToken,
         context: vscode.CompletionContext
     ): vscode.CompletionItem[] {
+        // Basic context check: don't provide completions in comments or strings
+        const line = document.lineAt(position.line);
+        const linePrefix = line.text.substring(0, position.character);
+        
+        if (this.isInStringOrComment(linePrefix)) {
+            return [];
+        }
+
         const completions: vscode.CompletionItem[] = [];
 
         for (const func of exploitFunctions) {
@@ -17,8 +99,9 @@ export class ExploitCompletionProvider implements vscode.CompletionItemProvider 
                 `**${func.category}**\n\n${func.description}\n\n**Returns:** ${func.returns}`
             );
 
-            // Create snippet for function with parameters
-            const snippet = this.createSnippet(func.signature);
+            const params = SignatureParser.parseParameters(func.signature);
+            const snippet = this.createSnippet(func.name, params);
+            
             if (snippet) {
                 item.insertText = new vscode.SnippetString(snippet);
             }
@@ -29,27 +112,49 @@ export class ExploitCompletionProvider implements vscode.CompletionItemProvider 
         return completions;
     }
 
-    private createSnippet(signature: string): string | undefined {
-        // Extract parameters from signature
-        const match = signature.match(/\(([^)]*)\)/);
-        if (!match) {
-            return undefined;
+    private isInStringOrComment(text: string): boolean {
+        let inString = false;
+        let quoteChar = '';
+        
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            if (char === '"' || char === "'") {
+                if (!inString) {
+                    inString = true;
+                    quoteChar = char;
+                } else if (char === quoteChar && text[i - 1] !== '\\') {
+                    inString = false;
+                }
+            } else if (char === '-' && text[i + 1] === '-' && !inString) {
+                return true; // Comment start
+            }
+        }
+        
+        return inString;
+    }
+
+    private createSnippet(funcName: string, params: ParsedParameter[]): string {
+        if (params.length === 0) {
+            return `${funcName}()`;
         }
 
-        const params = match[1];
-        if (!params.trim()) {
-            return undefined;
-        }
-
-        // Parse parameters
-        const paramList = params.split(',').map(p => p.trim());
-        let snippetParams = paramList.map((param, index) => {
-            const paramName = param.split(':')[0].trim();
-            const optional = param.includes('?');
-            return optional ? `\${${index + 1}:${paramName}}` : `\${${index + 1}:${paramName}}`;
+        const snippetParams = params.map((p, i) => {
+            // Handle nested types in snippet
+            if (p.type.startsWith('{') && p.type.endsWith('}')) {
+                // It's a table type, try to expand it
+                const innerContent = p.type.substring(1, p.type.length - 1);
+                // Simple heuristic for table keys
+                if (innerContent.includes(':')) {
+                     return `{\n\t${innerContent.split(',').map(k => {
+                        const [key, val] = k.split(':');
+                        return `${key.trim()} = \${${i + 1}:${val.trim()}}`;
+                     }).join(',\n\t')}\n}`;
+                }
+            }
+            return `\${${i + 1}:${p.name}}`;
         }).join(', ');
 
-        return `($snippetParams})`;
+        return `${funcName}(${snippetParams})`;
     }
 }
 
@@ -95,16 +200,44 @@ export class ExploitSignatureHelpProvider implements vscode.SignatureHelpProvide
         token: vscode.CancellationToken,
         context: vscode.SignatureHelpContext
     ): vscode.SignatureHelp | undefined {
-        // Find function name before the opening parenthesis
         const line = document.lineAt(position.line).text;
         const beforeCursor = line.substring(0, position.character);
-        const match = beforeCursor.match(/(\w+)\s*\(/);
+        
+        // Find the function call we are in
+        // This is a simple backward search, could be improved with AST
+        let depth = 0;
+        let paramIndex = 0;
+        let funcEndIndex = -1;
 
+        for (let i = beforeCursor.length - 1; i >= 0; i--) {
+            const char = beforeCursor[i];
+            
+            if (char === ')') depth++;
+            else if (char === '(') {
+                if (depth > 0) {
+                    depth--;
+                } else {
+                    funcEndIndex = i;
+                    break;
+                }
+            } else if (char === ',' && depth === 0) {
+                paramIndex++;
+            }
+        }
+
+        if (funcEndIndex === -1) {
+            return undefined;
+        }
+
+        // Extract function name
+        const preFunc = beforeCursor.substring(0, funcEndIndex).trim();
+        const match = preFunc.match(/[\w.]+$/);
+        
         if (!match) {
             return undefined;
         }
 
-        const funcName = match[1];
+        const funcName = match[0];
         const func = exploitFunctionMap.get(funcName);
 
         if (!func) {
@@ -113,25 +246,17 @@ export class ExploitSignatureHelpProvider implements vscode.SignatureHelpProvide
 
         const signatureHelp = new vscode.SignatureHelp();
         const signature = new vscode.SignatureInformation(func.signature, func.description);
-
-        // Parse parameters
-        const paramMatch = func.signature.match(/\(([^)]*)\)/);
-        if (paramMatch && paramMatch[1].trim()) {
-            const params = paramMatch[1].split(',').map(p => p.trim());
-            signature.parameters = params.map(param => {
-                const paramName = param.split(':')[0].trim();
-                const paramType = param.split(':')[1]?.trim() || 'any';
-                return new vscode.ParameterInformation(paramName, paramType);
-            });
-        }
+        
+        const params = SignatureParser.parseParameters(func.signature);
+        signature.parameters = params.map(p => 
+            new vscode.ParameterInformation(`${p.name}: ${p.type}`, p.optional ? 'Optional' : '')
+        );
 
         signatureHelp.signatures = [signature];
         signatureHelp.activeSignature = 0;
-
-        // Determine which parameter is active
-        const commaCount = beforeCursor.substring(beforeCursor.lastIndexOf('(')).split(',').length - 1;
-        signatureHelp.activeParameter = Math.min(commaCount, signature.parameters.length - 1);
+        signatureHelp.activeParameter = paramIndex;
 
         return signatureHelp;
     }
 }
+

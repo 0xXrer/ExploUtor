@@ -4,445 +4,182 @@
     "body": [
       "local old${1:FunctionName}",
       "old${1:FunctionName} = hookfunction(${2:target}, function(...)",
+      "\tif not checkcaller() then",
+      "\t\treturn old${1:FunctionName}(...)",
+      "\tend",
+      "\t",
       "\tlocal args = {...}",
       "\t$0",
       "\treturn old${1:FunctionName}(...)",
       "end)"
     ],
-    "description": "Hook a function with hookfunction"
+    "description": "Hook a function with checkcaller bypass"
   },
   "Hook Metamethod": {
     "prefix": "hookmeta",
     "body": [
       "local old${1:Metamethod}",
-      "old${1:Metamethod} = hookmetamethod(game, \"__${2:index}\", function(...)",
+      "old${1:Metamethod} = hookmetamethod(game, \"__${2:index}\", newcclosure(function(self, ...)",
+      "\tif not checkcaller() then",
+      "\t\treturn old${1:Metamethod}(self, ...)",
+      "\tend",
+      "\t",
       "\tlocal args = {...}",
       "\t$0",
-      "\treturn old${1:Metamethod}(...)",
-      "end)"
+      "\treturn old${1:Metamethod}(self, ...)",
+      "end))"
     ],
-    "description": "Hook a metamethod with hookmetamethod"
+    "description": "Hook a metamethod with newcclosure protection"
   },
-  "Hook NameCall Method": {
+  "Hook NameCall": {
     "prefix": "hooknamecall",
     "body": [
       "local oldNamecall",
-      "oldNamecall = hookmetamethod(game, \"__namecall\", function(...)",
+      "oldNamecall = hookmetamethod(game, \"__namecall\", newcclosure(function(self, ...)",
       "\tlocal method = getnamecallmethod()",
-      "\tlocal args = {...}",
+      "\t",
+      "\tif not checkcaller() then",
+      "\t\treturn oldNamecall(self, ...)",
+      "\tend",
       "\t",
       "\tif method == \"${1:FireServer}\" then",
       "\t\t$0",
       "\tend",
       "\t",
-      "\treturn oldNamecall(...)",
+      "\treturn oldNamecall(self, ...)",
+      "end))"
+    ],
+    "description": "Hook __namecall with protection"
+  },
+  "New C Closure": {
+    "prefix": "newcclosure",
+    "body": [
+      "newcclosure(function(...)",
+      "\t$0",
       "end)"
     ],
-    "description": "Hook __namecall metamethod"
+    "description": "Wrap function in C closure for anti-detection"
   },
-  "Hook __index": {
-    "prefix": "hookindex",
-    "body": [
-      "local oldIndex",
-      "oldIndex = hookmetamethod(game, \"__index\", function(self, key)",
-      "\tif key == \"${1:PropertyName}\" then",
-      "\t\t$0",
-      "\tend",
-      "\treturn oldIndex(self, key)",
-      "end)"
-    ],
-    "description": "Hook __index metamethod"
-  },
-  "Hook __newindex": {
-    "prefix": "hooknewindex",
-    "body": [
-      "local oldNewIndex",
-      "oldNewIndex = hookmetamethod(game, \"__newindex\", function(self, key, value)",
-      "\tif key == \"${1:PropertyName}\" then",
-      "\t\t$0",
-      "\tend",
-      "\treturn oldNewIndex(self, key, value)",
-      "end)"
-    ],
-    "description": "Hook __newindex metamethod"
-  },
-  "Custom Metatable": {
-    "prefix": "metatbl",
-    "body": [
-      "local ${1:tableName} = {}",
-      "local mt = {",
-      "\t__index = function(self, key)",
-      "\t\t$0",
-      "\tend,",
-      "\t__newindex = function(self, key, value)",
-      "\t\t",
-      "\tend,",
-      "\t__call = function(self, ...)",
-      "\t\t",
-      "\tend",
-      "}",
-      "setmetatable(${1:tableName}, mt)"
-    ],
-    "description": "Create a custom metatable"
-  },
-  "ESP Box": {
-    "prefix": "espbox",
-    "body": [
-      "local function createESP(player)",
-      "\tlocal box = Drawing.new(\"Square\")",
-      "\tbox.Visible = false",
-      "\tbox.Color = Color3.fromRGB(${1:255}, ${2:0}, ${3:0})",
-      "\tbox.Thickness = ${4:2}",
-      "\tbox.Transparency = ${5:1}",
-      "\tbox.Filled = false",
-      "\t",
-      "\tlocal function updateESP()",
-      "\t\tlocal character = player.Character",
-      "\t\tif not character then return end",
-      "\t\t",
-      "\t\tlocal hrp = character:FindFirstChild(\"HumanoidRootPart\")",
-      "\t\tif not hrp then return end",
-      "\t\t",
-      "\t\tlocal vector, onScreen = workspace.CurrentCamera:WorldToViewportPoint(hrp.Position)",
-      "\t\t",
-      "\t\tif onScreen then",
-      "\t\t\tlocal headPos = workspace.CurrentCamera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2.5, 0))",
-      "\t\t\tlocal legPos = workspace.CurrentCamera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 2.5, 0))",
-      "\t\t\t",
-      "\t\t\tlocal height = math.abs(headPos.Y - legPos.Y)",
-      "\t\t\tlocal width = height * 0.5",
-      "\t\t\t",
-      "\t\t\tbox.Size = Vector2.new(width, height)",
-      "\t\t\tbox.Position = Vector2.new(vector.X - width / 2, vector.Y - height / 2)",
-      "\t\t\tbox.Visible = true",
-      "\t\telse",
-      "\t\t\tbox.Visible = false",
-      "\t\tend",
-      "\tend",
-      "\t",
-      "\tgame:GetService(\"RunService\").RenderStepped:Connect(updateESP)",
-      "end",
-      "",
-      "for _, player in ipairs(game.Players:GetPlayers()) do",
-      "\tif player ~= game.Players.LocalPlayer then",
-      "\t\tcreateESP(player)",
-      "\tend",
-      "end"
-    ],
-    "description": "Create ESP box for players"
-  },
-  "ESP Tracer": {
-    "prefix": "esptracer",
-    "body": [
-      "local function createTracer(player)",
-      "\tlocal line = Drawing.new(\"Line\")",
-      "\tline.Visible = false",
-      "\tline.Color = Color3.fromRGB(${1:255}, ${2:255}, ${3:255})",
-      "\tline.Thickness = ${4:1}",
-      "\tline.Transparency = ${5:1}",
-      "\t",
-      "\tlocal function updateTracer()",
-      "\t\tlocal character = player.Character",
-      "\t\tif not character then return end",
-      "\t\t",
-      "\t\tlocal hrp = character:FindFirstChild(\"HumanoidRootPart\")",
-      "\t\tif not hrp then return end",
-      "\t\t",
-      "\t\tlocal vector, onScreen = workspace.CurrentCamera:WorldToViewportPoint(hrp.Position)",
-      "\t\t",
-      "\t\tif onScreen then",
-      "\t\t\tlocal screenSize = workspace.CurrentCamera.ViewportSize",
-      "\t\t\tline.From = Vector2.new(screenSize.X / 2, screenSize.Y)",
-      "\t\t\tline.To = Vector2.new(vector.X, vector.Y)",
-      "\t\t\tline.Visible = true",
-      "\t\telse",
-      "\t\t\tline.Visible = false",
-      "\t\tend",
-      "\tend",
-      "\t",
-      "\tgame:GetService(\"RunService\").RenderStepped:Connect(updateTracer)",
-      "end",
-      "",
-      "for _, player in ipairs(game.Players:GetPlayers()) do",
-      "\tif player ~= game.Players.LocalPlayer then",
-      "\t\tcreateTracer(player)",
-      "\tend",
-      "end"
-    ],
-    "description": "Create ESP tracer lines"
-  },
-  "Remote Spy": {
-    "prefix": "remotespy",
-    "body": [
-      "local remotes = {}",
-      "",
-      "local function logRemote(remote, method, ...)",
-      "\tlocal args = {...}",
-      "\tprint(string.format(\"[Remote Spy] %s:%s\", remote:GetFullName(), method))",
-      "\tfor i, arg in ipairs(args) do",
-      "\t\tprint(string.format(\"  [%d] %s\", i, tostring(arg)))",
-      "\tend",
-      "end",
-      "",
-      "local oldNamecall",
-      "oldNamecall = hookmetamethod(game, \"__namecall\", function(...)",
-      "\tlocal method = getnamecallmethod()",
-      "\tlocal self = ...",
-      "\t",
-      "\tif (method == \"FireServer\" or method == \"InvokeServer\") and self:IsA(\"RemoteEvent\") or self:IsA(\"RemoteFunction\") then",
-      "\t\tlogRemote(self, method, select(2, ...))",
-      "\tend",
-      "\t",
-      "\treturn oldNamecall(...)",
-      "end)"
-    ],
-    "description": "Spy on remote events and functions"
-  },
-  "Anti-Kick": {
-    "prefix": "antikick",
-    "body": [
-      "local Players = game:GetService(\"Players\")",
-      "local LocalPlayer = Players.LocalPlayer",
-      "",
-      "local oldKick",
-      "oldKick = hookmetamethod(game, \"__namecall\", function(...)",
-      "\tlocal method = getnamecallmethod()",
-      "\tlocal args = {...}",
-      "\t",
-      "\tif method == \"Kick\" and args[1] == LocalPlayer then",
-      "\t\tprint(\"[Anti-Kick] Blocked kick attempt\")",
-      "\t\treturn",
-      "\tend",
-      "\t",
-      "\treturn oldKick(...)",
-      "end)"
-    ],
-    "description": "Prevent being kicked from the game"
-  },
-  "Instance Scanner": {
-    "prefix": "scaninstance",
-    "body": [
-      "local function scanForInstances(className, property, value)",
-      "\tlocal results = {}",
-      "\t",
-      "\tfor _, instance in ipairs(getinstances()) do",
-      "\t\tif instance.ClassName == className then",
-      "\t\t\tlocal success, val = pcall(function()",
-      "\t\t\t\treturn instance[property]",
-      "\t\t\tend)",
-      "\t\t\t",
-      "\t\t\tif success and val == value then",
-      "\t\t\t\ttable.insert(results, instance)",
-      "\t\t\tend",
-      "\t\tend",
-      "\tend",
-      "\t",
-      "\treturn results",
-      "end",
-      "",
-      "local results = scanForInstances(\"${1:RemoteEvent}\", \"${2:Name}\", \"${3:value}\")",
-      "print(\"Found \" .. #results .. \" instances\")"
-    ],
-    "description": "Scan for instances with specific properties"
-  },
-  "Closure Logger": {
-    "prefix": "closurelog",
-    "body": [
-      "local function logClosureInfo(func)",
-      "\tif not islclosure(func) then",
-      "\t\tprint(\"Not a Lua closure\")",
-      "\t\treturn",
-      "\tend",
-      "\t",
-      "\tlocal info = debug.getinfo(func)",
-      "\tprint(\"Closure Info:\")",
-      "\tprint(\"  Source:\", info.source)",
-      "\tprint(\"  Line:\", info.currentline)",
-      "\tprint(\"  Name:\", info.name or \"anonymous\")",
-      "\t",
-      "\tlocal constants = debug.getconstants(func)",
-      "\tprint(\"  Constants:\")",
-      "\tfor i, const in ipairs(constants) do",
-      "\t\tprint(string.format(\"    [%d] %s\", i, tostring(const)))",
-      "\tend",
-      "\t",
-      "\tlocal upvalues = debug.getupvalues(func)",
-      "\tprint(\"  Upvalues:\")",
-      "\tfor name, value in pairs(upvalues) do",
-      "\t\tprint(string.format(\"    %s = %s\", name, tostring(value)))",
-      "\tend",
-      "end",
-      "",
-      "logClosureInfo(${1:functionName})"
-    ],
-    "description": "Log detailed closure information"
-  },
-  "Bypass TextFiltered": {
-    "prefix": "bypasstextfilter",
-    "body": [
-      "local oldIndex",
-      "oldIndex = hookmetamethod(game, \"__index\", function(self, key)",
-      "\tif key == \"TextFiltered\" and self:IsA(\"TextFilterResult\") then",
-      "\t\treturn self.Text",
-      "\tend",
-      "\treturn oldIndex(self, key)",
-      "end)"
-    ],
-    "description": "Bypass text filtering"
-  },
-  "Get Calling Script": {
-    "prefix": "getcaller",
-    "body": [
-      "local function getCallerInfo()",
-      "\tlocal caller = getcallingscript()",
-      "\tif caller then",
-      "\t\tprint(\"Caller:\", caller:GetFullName())",
-      "\t\treturn caller",
-      "\telse",
-      "\t\tprint(\"No calling script\")",
-      "\t\treturn nil",
-      "\tend",
-      "end",
-      "",
-      "getCallerInfo()"
-    ],
-    "description": "Get information about the calling script"
-  },
-  "Protection Pattern": {
+  "Protect Table": {
     "prefix": "protect",
     "body": [
-      "local ${1:protectedTable} = {}",
-      "local ${1:protectedTable}_mt = {}",
+      "local ${1:tbl} = {}",
+      "setreadonly(${1:tbl}, false)",
       "",
-      "function ${1:protectedTable}_mt:__index(key)",
-      "\tif not checkcaller() then",
-      "\t\terror(\"Access denied\")",
-      "\tend",
-      "\treturn rawget(${1:protectedTable}, key)",
-      "end",
+      "local mt = {",
+      "\t__index = function(self, key)",
+      "\t\tif not checkcaller() then",
+      "\t\t\terror(\"Access denied\")",
+      "\t\tend",
+      "\t\treturn rawget(self, key)",
+      "\tend,",
+      "\t__newindex = function(self, key, value)",
+      "\t\tif not checkcaller() then",
+      "\t\t\terror(\"Access denied\")",
+      "\t\tend",
+      "\t\trawset(self, key, value)",
+      "\tend,",
+      "\t__metatable = \"Locked\"",
+      "}",
       "",
-      "function ${1:protectedTable}_mt:__newindex(key, value)",
-      "\tif not checkcaller() then",
-      "\t\terror(\"Modification denied\")",
-      "\tend",
-      "\trawset(${1:protectedTable}, key, value)",
-      "end",
-      "",
-      "setmetatable(${1:protectedTable}, ${1:protectedTable}_mt)",
-      "setreadonly(${1:protectedTable}_mt, true)"
+      "setmetatable(${1:tbl}, mt)"
     ],
-    "description": "Create a protected table pattern"
+    "description": "Create a protected table"
   },
-  "GC Scanner": {
-    "prefix": "gcscan",
+  "Get Global Env": {
+    "prefix": "getgenv",
     "body": [
-      "local function scanGC(type, filter)",
-      "\tlocal results = {}",
+      "local env = getgenv()",
+      "if not env.${1:MyLibrary} then",
+      "\tenv.${1:MyLibrary} = {}",
+      "end",
+      "local ${1:MyLibrary} = env.${1:MyLibrary}"
+    ],
+    "description": "Safely get/init global environment"
+  },
+  "Spoof Instance": {
+    "prefix": "spoof",
+    "body": [
+      "local oldIndex",
+      "oldIndex = hookmetamethod(game, \"__index\", newcclosure(function(self, key)",
+      "\tif checkcaller() then return oldIndex(self, key) end",
       "\t",
-      "\tfor _, obj in ipairs(getgc(true)) do",
-      "\t\tif typeof(obj) == type then",
-      "\t\t\tif not filter or filter(obj) then",
-      "\t\t\t\ttable.insert(results, obj)",
-      "\t\t\tend",
+      "\tif self == ${1:TargetInstance} and key == \"${2:Property}\" then",
+      "\t\treturn ${3:SpoofedValue}",
+      "\tend",
+      "\t",
+      "\treturn oldIndex(self, key)",
+      "end))"
+    ],
+    "description": "Spoof instance property"
+  },
+  "Remote Spy Template": {
+    "prefix": "remotespy",
+    "body": [
+      "local oldNamecall",
+      "oldNamecall = hookmetamethod(game, \"__namecall\", newcclosure(function(self, ...)",
+      "\tlocal method = getnamecallmethod()",
+      "\tlocal args = {...}",
+      "\t",
+      "\tif method == \"FireServer\" or method == \"InvokeServer\" then",
+      "\t\tprint(\"Remote: \" .. self.Name .. \" | Method: \" .. method)",
+      "\t\tfor i, v in ipairs(args) do",
+      "\t\t\tprint(\"Arg \" .. i .. \": \" .. tostring(v))",
       "\t\tend",
       "\tend",
       "\t",
-      "\treturn results",
-      "end",
-      "",
-      "-- Find all functions containing a specific constant",
-      "local functions = scanGC(\"function\", function(func)",
-      "\tlocal constants = debug.getconstants(func)",
-      "\tfor _, const in ipairs(constants) do",
-      "\t\tif const == \"${1:searchString}\" then",
-      "\t\t\treturn true",
-      "\t\tend",
+      "\treturn oldNamecall(self, ...)",
+      "end))"
+    ],
+    "description": "Simple remote spy"
+  },
+  "Bypass Anti-Cheat": {
+    "prefix": "bypassac",
+    "body": [
+      "local oldNamecall",
+      "oldNamecall = hookmetamethod(game, \"__namecall\", newcclosure(function(self, ...)",
+      "\tlocal method = getnamecallmethod()",
+      "\t",
+      "\tif method == \"FireServer\" and self.Name == \"${1:BanRemote}\" then",
+      "\t\treturn",
       "\tend",
-      "\treturn false",
-      "end)",
-      "",
-      "print(\"Found \" .. #functions .. \" functions\")"
+      "\t",
+      "\treturn oldNamecall(self, ...)",
+      "end))"
     ],
-    "description": "Scan garbage collector for objects"
+    "description": "Block specific remote calls"
   },
-  "Service Getter": {
-    "prefix": "getservices",
+  "Clone Function": {
+    "prefix": "clonefunc",
     "body": [
-      "local Players = game:GetService(\"Players\")",
-      "local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")",
-      "local RunService = game:GetService(\"RunService\")",
-      "local UserInputService = game:GetService(\"UserInputService\")",
-      "local TweenService = game:GetService(\"TweenService\")",
-      "local Workspace = game:GetService(\"Workspace\")",
-      "local LocalPlayer = Players.LocalPlayer",
-      "$0"
+      "local ${1:newFunc} = clonefunction(${2:targetFunc})"
     ],
-    "description": "Common game services"
+    "description": "Clone a function to avoid detection"
   },
-  "Connection Manager": {
-    "prefix": "connmgr",
+  "Secure Call": {
+    "prefix": "securecall",
     "body": [
-      "local ConnectionManager = {}",
-      "ConnectionManager.__index = ConnectionManager",
-      "",
-      "function ConnectionManager.new()",
-      "\tlocal self = setmetatable({}, ConnectionManager)",
-      "\tself.connections = {}",
-      "\treturn self",
-      "end",
-      "",
-      "function ConnectionManager:Add(connection)",
-      "\ttable.insert(self.connections, connection)",
-      "\treturn connection",
-      "end",
-      "",
-      "function ConnectionManager:DisconnectAll()",
-      "\tfor _, connection in ipairs(self.connections) do",
-      "\t\tconnection:Disconnect()",
-      "\tend",
-      "\tself.connections = {}",
-      "end",
-      "",
-      "local manager = ConnectionManager.new()",
-      "$0"
-    ],
-    "description": "Connection manager for cleanup"
-  },
-  "Safe Call": {
-    "prefix": "safecall",
-    "body": [
-      "local function safeCall(func, ...)",
+      "local function secureCall(func, ...)",
       "\tlocal success, result = pcall(func, ...)",
       "\tif not success then",
-      "\t\twarn(\"Error:\", result)",
+      "\t\twarn(\"Secure call failed:\", result)",
       "\t\treturn nil",
       "\tend",
       "\treturn result",
-      "end",
-      "",
-      "local result = safeCall(${1:functionName})"
+      "end"
     ],
-    "description": "Safe function call with error handling"
+    "description": "Safe function execution wrapper"
   },
-  "Wait For Child": {
-    "prefix": "waitforchild",
+  "Drawing Library": {
+    "prefix": "drawing",
     "body": [
-      "local function waitForChild(parent, childName, timeout)",
-      "\tlocal startTime = tick()",
-      "\ttimeout = timeout or 5",
-      "\t",
-      "\twhile not parent:FindFirstChild(childName) do",
-      "\t\tif tick() - startTime > timeout then",
-      "\t\t\treturn nil",
-      "\t\tend",
-      "\t\ttask.wait()",
-      "\tend",
-      "\t",
-      "\treturn parent:FindFirstChild(childName)",
-      "end",
-      "",
-      "local child = waitForChild(${1:parent}, \"${2:childName}\")"
+      "local ${1:obj} = Drawing.new(\"${2:Square}\")",
+      "${1:obj}.Visible = true",
+      "${1:obj}.Color = Color3.fromRGB(255, 255, 255)",
+      "${1:obj}.Transparency = 1",
+      "${1:obj}.Thickness = 1",
+      "$0"
     ],
-    "description": "Wait for child with timeout"
+    "description": "Create drawing object"
   }
 }

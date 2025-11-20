@@ -17,6 +17,8 @@ import { ExploUtorDebugAdapterDescriptorFactory } from './features/debugger';
 import { InjectionManager } from './features/injectionManager';
 import { MemoryViewer } from './features/memoryViewer';
 import { Profiler } from './features/profiler';
+import { PatternLibrary } from './features/patternLibrary';
+import { BytecodeTools } from './features/bytecodeTools';
 import { PluginSystem } from './core/pluginSystem';
 
 let wsManager: WebSocketManager;
@@ -36,6 +38,8 @@ let pluginSystem: PluginSystem;
 let injectionManager: InjectionManager;
 let memoryViewer: MemoryViewer;
 let profiler: Profiler;
+let patternLibrary: PatternLibrary;
+let bytecodeTools: BytecodeTools;
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('ExploUtor extension is now active');
@@ -90,6 +94,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider('exploUtorInjection', injectionManager);
     memoryViewer = new MemoryViewer(wsManager, outputManager);
     profiler = new Profiler(wsManager, outputManager);
+    patternLibrary = new PatternLibrary();
+    bytecodeTools = new BytecodeTools(outputManager);
 
     outputManager.info('All features initialized');
 
@@ -271,6 +277,30 @@ function registerCommands(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('exploitor.openProfiler', () => {
             profiler.open();
+        })
+    );
+
+    // Pattern Library
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.insertPattern', async () => {
+            await patternLibrary.insertPattern();
+        })
+    );
+
+    // Bytecode Tools
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.disassemble', async () => {
+            await bytecodeTools.disassemble();
+        })
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.injectModifier', async () => {
+            await bytecodeTools.injectModifier();
+        })
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('exploitor.dumpProto', async () => {
+            await bytecodeTools.dumpProto();
         })
     );
 

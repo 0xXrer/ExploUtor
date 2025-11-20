@@ -160,6 +160,26 @@
         "command": "exploitor.inspectVariables",
         "title": "Inspect Variables",
         "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.insertPattern",
+        "title": "Insert Exploit Pattern",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.disassemble",
+        "title": "Disassemble Script",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.injectModifier",
+        "title": "Inject Bytecode Modifier",
+        "category": "ExploUtor"
+      },
+      {
+        "command": "exploitor.dumpProto",
+        "title": "Dump Function Protos",
+        "category": "ExploUtor"
       }
     ],
     "viewsContainers": {
@@ -347,6 +367,7 @@
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
+    "@types/luaparse": "^0.2.13",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
     "@types/vscode": "^1.85.0",
@@ -360,6 +381,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "luaparse": "^0.3.1",
     "vscode-languageclient": "^9.0.1",
     "ws": "^8.16.0"
   }

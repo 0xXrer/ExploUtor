@@ -9,7 +9,7 @@ export enum ConnectionStatus {
 }
 
 export interface ExecutorMessage {
-    type: 'execute' | 'bundle_execute' | 'heartbeat' | 'response' | 'debug_event' | 'memory_update' | 'profiler_data';
+    type: 'execute' | 'bundle_execute' | 'heartbeat' | 'response' | 'debug_event' | 'memory_update' | 'memory_read' | 'profiler_data';
     code?: string;
     bundled?: boolean;
     selection?: boolean;
@@ -23,6 +23,7 @@ export interface ExecutorMessage {
     variables?: Record<string, any>;
     // Memory fields
     address?: number;
+    size?: number;
     data?: string; // Hex string or base64
     // Profiler fields
     profileData?: any;
