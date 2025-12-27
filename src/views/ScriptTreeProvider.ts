@@ -1,58 +1,47 @@
 import * as vscode from 'vscode';
 import { JsonRpcHandler } from '../connection/JsonRpcHandler';
-import { ScriptInfo, ScanScriptsResult } from '../types/protocol';
 
-export class ScriptTreeItem extends vscode.TreeItem {
-    constructor(
-        public readonly script: ScriptInfo
-    ) {
+interface ScriptResult {
+    name: string;
+    className: string;
+    path: string;
+}
+
+class ScriptItem extends vscode.TreeItem {
+    constructor(public readonly script: ScriptResult) {
         super(script.name, vscode.TreeItemCollapsibleState.None);
-        this.description = `P:${script.protosCount} C:${script.constantsCount}`;
-        this.tooltip = new vscode.MarkdownString();
-        this.tooltip.appendCodeblock(script.source.substring(0, 500), 'lua');
-        this.contextValue = 'script';
+        this.description = script.className;
+        this.tooltip = script.path;
         this.iconPath = new vscode.ThemeIcon('file-code');
-        this.command = {
-            command: 'exploitor.inspectItem',
-            title: 'Inspect',
-            arguments: [{ type: 'script', data: script }]
-        };
+        this.command = { command: 'exploitor.readScript', title: 'Read', arguments: [script.path] };
     }
 }
 
-export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeItem> {
-    private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<ScriptTreeItem | undefined>();
-    readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
-    
-    private scripts: ScriptInfo[] = [];
-    private rpc: JsonRpcHandler;
+export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptItem> {
+    private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();
+    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+    private items: ScriptItem[] = [];
+    private rpc = JsonRpcHandler.getInstance();
+    private lastQuery = '';
 
-    constructor() {
-        this.rpc = JsonRpcHandler.getInstance();
-    }
-
-    public async refresh(): Promise<void> {
+    async search(query: string): Promise<void> {
+        if (!query.trim()) {
+            this.items = [];
+            this._onDidChangeTreeData.fire();
+            return;
+        }
+        this.lastQuery = query;
         try {
-            const result = await this.rpc.request<ScanScriptsResult>('scan_scripts');
-            this.scripts = result.scripts || [];
-            this.onDidChangeTreeDataEmitter.fire(undefined);
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to scan scripts: ${error}`);
-        }
+            const result = await this.rpc.request<{ scripts: ScriptResult[] }>('search_scripts', { query, includeModules: false });
+            this.items = (result.scripts || []).map(s => new ScriptItem(s));
+        } catch { this.items = []; }
+        this._onDidChangeTreeData.fire();
     }
 
-    getTreeItem(element: ScriptTreeItem): vscode.TreeItem {
-        return element;
+    async refresh(): Promise<void> {
+        if (this.lastQuery) await this.search(this.lastQuery);
     }
 
-    getChildren(element?: ScriptTreeItem): vscode.ProviderResult<ScriptTreeItem[]> {
-        if (element) {
-            return [];
-        }
-        return this.scripts.map(script => new ScriptTreeItem(script));
-    }
-
-    public getScripts(): ScriptInfo[] {
-        return this.scripts;
-    }
+    getTreeItem(el: ScriptItem) { return el; }
+    getChildren() { return this.items; }
 }

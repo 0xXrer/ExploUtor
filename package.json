@@ -33,20 +33,29 @@
         "title": "ExploUtor: Execute File"
       },
       {
-        "command": "exploitor.scanUpvalues",
-        "title": "ExploUtor: Scan Upvalues"
+        "command": "exploitor.searchUpvalues",
+        "title": "Search Upvalues",
+        "icon": "$(search)"
       },
       {
-        "command": "exploitor.scanConstants",
-        "title": "ExploUtor: Scan Constants"
+        "command": "exploitor.searchConstants",
+        "title": "Search Constants",
+        "icon": "$(search)"
       },
       {
-        "command": "exploitor.scanScripts",
-        "title": "ExploUtor: Scan Scripts"
+        "command": "exploitor.searchScripts",
+        "title": "Search Scripts",
+        "icon": "$(search)"
       },
       {
-        "command": "exploitor.scanModules",
-        "title": "ExploUtor: Scan Modules"
+        "command": "exploitor.searchModules",
+        "title": "Search Modules",
+        "icon": "$(search)"
+      },
+      {
+        "command": "exploitor.searchClosures",
+        "title": "Search Closures",
+        "icon": "$(search)"
       },
       {
         "command": "exploitor.refreshUpvalues",
@@ -85,12 +94,12 @@
       },
       {
         "command": "exploitor.toggleClosureSpy",
-        "title": "Toggle Closure Spy",
-        "icon": "$(eye)"
+        "title": "Search Closures",
+        "icon": "$(search)"
       },
       {
-        "command": "exploitor.modifyUpvalue",
-        "title": "Modify Value"
+        "command": "exploitor.readScript",
+        "title": "Read Script Source"
       },
       {
         "command": "exploitor.inspectItem",
@@ -137,8 +146,18 @@
     "menus": {
       "view/title": [
         {
+          "command": "exploitor.searchUpvalues",
+          "when": "view == exploitor.upvalues",
+          "group": "navigation"
+        },
+        {
           "command": "exploitor.refreshUpvalues",
           "when": "view == exploitor.upvalues",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.searchConstants",
+          "when": "view == exploitor.constants",
           "group": "navigation"
         },
         {
@@ -147,8 +166,18 @@
           "group": "navigation"
         },
         {
+          "command": "exploitor.searchScripts",
+          "when": "view == exploitor.scripts",
+          "group": "navigation"
+        },
+        {
           "command": "exploitor.refreshScripts",
           "when": "view == exploitor.scripts",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.searchModules",
+          "when": "view == exploitor.modules",
           "group": "navigation"
         },
         {
@@ -167,7 +196,7 @@
           "group": "navigation"
         },
         {
-          "command": "exploitor.toggleClosureSpy",
+          "command": "exploitor.searchClosures",
           "when": "view == exploitor.closureSpy",
           "group": "navigation"
         },

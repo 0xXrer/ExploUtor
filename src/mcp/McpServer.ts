@@ -6,15 +6,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { JsonRpcHandler } from '../connection/JsonRpcHandler';
 import { WebSocketManager } from '../connection/WebSocketManager';
-import {
-    PlaceInfo,
-    ScanScriptsResult,
-    GetRemotesResult,
-    ScanConstantsResult,
-    ScanUpvaluesResult,
-    SearchConstantsParams,
-    SearchUpvaluesParams
-} from '../types/protocol';
+import { PlaceInfo, GetRemotesResult } from '../types/protocol';
 
 export class McpServer {
     private server: Server;
@@ -47,64 +39,104 @@ export class McpServer {
                 {
                     name: 'get_place_info',
                     description: 'Get information about the current Roblox place (PlaceId, creator, etc)',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {},
-                        required: []
-                    }
+                    inputSchema: { type: 'object', properties: {}, required: [] }
                 },
                 {
-                    name: 'get_scripts',
-                    description: 'Get a list of all scripts in the game',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {},
-                        required: []
-                    }
-                },
-                {
-                    name: 'get_remotes',
-                    description: 'Get a list of all RemoteEvents and RemoteFunctions',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {},
-                        required: []
-                    }
-                },
-                {
-                    name: 'search_constants',
-                    description: 'Search for constants by value or pattern',
+                    name: 'find_instances',
+                    description: 'Find instances by name pattern or ClassName',
                     inputSchema: {
                         type: 'object',
                         properties: {
-                            query: {
-                                type: 'string',
-                                description: 'Search query for constant values'
-                            },
-                            type: {
-                                type: 'string',
-                                description: 'Filter by type (string, number, etc)',
-                                enum: ['string', 'number', 'boolean']
-                            }
+                            query: { type: 'string', description: 'Name or pattern to search for' },
+                            className: { type: 'string', description: 'Filter by ClassName (e.g., Part, Model, Script)' },
+                            ancestor: { type: 'string', description: 'Path to search under (default: game)' }
                         },
                         required: ['query']
                     }
                 },
                 {
-                    name: 'search_upvalues',
-                    description: 'Search for upvalues by name or value',
+                    name: 'get_children',
+                    description: 'Get children of an instance',
                     inputSchema: {
                         type: 'object',
                         properties: {
-                            query: {
-                                type: 'string',
-                                description: 'Search query for upvalue names or values'
-                            },
-                            type: {
-                                type: 'string',
-                                description: 'Filter by type',
-                                enum: ['string', 'number', 'boolean', 'function', 'table']
-                            }
+                            path: { type: 'string', description: 'Full path to the instance (default: game)' }
+                        },
+                        required: []
+                    }
+                },
+                {
+                    name: 'get_properties',
+                    description: 'Get properties and attributes of an instance',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            path: { type: 'string', description: 'Full path to the instance' },
+                            properties: { type: 'array', items: { type: 'string' }, description: 'Specific property names to fetch' }
+                        },
+                        required: ['path']
+                    }
+                },
+                {
+                    name: 'read_script',
+                    description: 'Read/decompile the source code of a script',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            path: { type: 'string', description: 'Full path to the script' }
+                        },
+                        required: ['path']
+                    }
+                },
+                {
+                    name: 'get_remotes',
+                    description: 'Get a list of all RemoteEvents and RemoteFunctions',
+                    inputSchema: { type: 'object', properties: {}, required: [] }
+                },
+                {
+                    name: 'search_upvalues',
+                    description: 'Search for upvalues by name or value pattern',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string', description: 'Search query for upvalue names or values' },
+                            type: { type: 'string', description: 'Filter by type', enum: ['string', 'number', 'boolean', 'function', 'table'] }
+                        },
+                        required: ['query']
+                    }
+                },
+                {
+                    name: 'search_constants',
+                    description: 'Search for constants by value pattern',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string', description: 'Search query for constant values' },
+                            type: { type: 'string', description: 'Filter by type', enum: ['string', 'number', 'boolean'] }
+                        },
+                        required: ['query']
+                    }
+                },
+                {
+                    name: 'search_scripts',
+                    description: 'Search for scripts by name pattern',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string', description: 'Script name pattern to search for' },
+                            includeModules: { type: 'boolean', description: 'Include ModuleScripts (default: true)' }
+                        },
+                        required: ['query']
+                    }
+                },
+                {
+                    name: 'search_closures',
+                    description: 'Search for closures by name or constants',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string', description: 'Closure name or constant to search for' },
+                            searchConstants: { type: 'boolean', description: 'Search in constants too' }
                         },
                         required: ['query']
                     }
@@ -114,98 +146,17 @@ export class McpServer {
 
         this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (!this.wsManager.isConnected()) {
-                return {
-                    content: [{ type: 'text', text: 'Error: Not connected to executor' }],
-                    isError: true
-                };
+                return { content: [{ type: 'text', text: 'Error: Not connected to executor' }], isError: true };
             }
 
             const { name, arguments: args } = request.params;
 
             try {
-                switch (name) {
-                    case 'get_place_info': {
-                        const result = await this.rpc.request<PlaceInfo>('get_place_info');
-                        return {
-                            content: [{
-                                type: 'text',
-                                text: JSON.stringify(result, null, 2)
-                            }]
-                        };
-                    }
-
-                    case 'get_scripts': {
-                        const result = await this.rpc.request<ScanScriptsResult>('scan_scripts');
-                        const summary = result.scripts.map(s => ({
-                            name: s.name,
-                            path: s.path,
-                            protosCount: s.protosCount,
-                            constantsCount: s.constantsCount
-                        }));
-                        return {
-                            content: [{
-                                type: 'text',
-                                text: JSON.stringify(summary, null, 2)
-                            }]
-                        };
-                    }
-
-                    case 'get_remotes': {
-                        const result = await this.rpc.request<GetRemotesResult>('get_remotes');
-                        return {
-                            content: [{
-                                type: 'text',
-                                text: JSON.stringify(result.remotes, null, 2)
-                            }]
-                        };
-                    }
-
-                    case 'search_constants': {
-                        const params = args as unknown as SearchConstantsParams;
-                        const result = await this.rpc.request<ScanConstantsResult>('scan_constants');
-                        const filtered = result.constants.filter(c => {
-                            const matchesQuery = c.value.toLowerCase().includes(params.query.toLowerCase());
-                            const matchesType = !params.type || c.type === params.type;
-                            return matchesQuery && matchesType;
-                        });
-                        return {
-                            content: [{
-                                type: 'text',
-                                text: JSON.stringify(filtered.slice(0, 100), null, 2)
-                            }]
-                        };
-                    }
-
-                    case 'search_upvalues': {
-                        const params = args as unknown as SearchUpvaluesParams;
-                        const result = await this.rpc.request<ScanUpvaluesResult>('scan_upvalues');
-                        const filtered = result.upvalues.filter(u => {
-                            const matchesQuery = 
-                                u.name.toLowerCase().includes(params.query.toLowerCase()) ||
-                                u.value.toLowerCase().includes(params.query.toLowerCase());
-                            const matchesType = !params.type || u.type === params.type;
-                            return matchesQuery && matchesType;
-                        });
-                        return {
-                            content: [{
-                                type: 'text',
-                                text: JSON.stringify(filtered.slice(0, 100), null, 2)
-                            }]
-                        };
-                    }
-
-                    default:
-                        return {
-                            content: [{ type: 'text', text: `Unknown tool: ${name}` }],
-                            isError: true
-                        };
-                }
+                const result = await this.rpc.request(name, args || {});
+                return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
             } catch (error) {
                 return {
-                    content: [{
-                        type: 'text',
-                        text: `Error: ${error instanceof Error ? error.message : String(error)}`
-                    }],
+                    content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
                     isError: true
                 };
             }
@@ -214,7 +165,6 @@ export class McpServer {
 
     public async start(): Promise<void> {
         if (this.isRunning) return;
-
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         this.isRunning = true;
@@ -222,7 +172,6 @@ export class McpServer {
 
     public async stop(): Promise<void> {
         if (!this.isRunning) return;
-
         await this.server.close();
         this.isRunning = false;
     }

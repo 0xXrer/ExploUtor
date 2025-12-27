@@ -42,87 +42,71 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     wsManager.onStateChange((state: ConnectionState) => {
         updateStatusBar(state);
-        
         if (state === 'connected') {
             const config = vscode.workspace.getConfiguration('exploitor');
-            if (config.get<boolean>('remoteSpy.enabled')) {
-                remoteSpyProvider.enable();
-            }
-            if (config.get<boolean>('closureSpy.enabled')) {
-                closureSpyProvider.enable();
-            }
+            if (config.get<boolean>('remoteSpy.enabled')) remoteSpyProvider.enable();
         }
     });
 
     context.subscriptions.push(
         vscode.commands.registerCommand('exploitor.connect', async () => {
-            try {
-                await wsManager.connect();
-                vscode.window.showInformationMessage('Connected to executor');
-            } catch (error) {
-                vscode.window.showErrorMessage(`Failed to connect: ${error}`);
-            }
+            try { await wsManager.connect(); vscode.window.showInformationMessage('Connected'); }
+            catch (e) { vscode.window.showErrorMessage(`Failed: ${e}`); }
         }),
-
         vscode.commands.registerCommand('exploitor.disconnect', () => {
             wsManager.disconnect();
-            vscode.window.showInformationMessage('Disconnected from executor');
+            vscode.window.showInformationMessage('Disconnected');
         }),
-
         vscode.commands.registerCommand('exploitor.toggleConnection', async () => {
-            if (wsManager.isConnected()) {
-                wsManager.disconnect();
-            } else {
-                try {
-                    await wsManager.connect();
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Failed to connect: ${error}`);
-                }
-            }
+            if (wsManager.isConnected()) wsManager.disconnect();
+            else try { await wsManager.connect(); } catch (e) { vscode.window.showErrorMessage(`Failed: ${e}`); }
         }),
 
         vscode.commands.registerCommand('exploitor.executeSelection', () => executor.executeSelection()),
         vscode.commands.registerCommand('exploitor.executeFile', () => executor.executeFile()),
+
+        // Search commands
+        vscode.commands.registerCommand('exploitor.searchUpvalues', async () => {
+            const q = await vscode.window.showInputBox({ prompt: 'Search upvalues by name or value' });
+            if (q) upvalueProvider.search(q);
+        }),
+        vscode.commands.registerCommand('exploitor.searchConstants', async () => {
+            const q = await vscode.window.showInputBox({ prompt: 'Search constants by value' });
+            if (q) constantProvider.search(q);
+        }),
+        vscode.commands.registerCommand('exploitor.searchScripts', async () => {
+            const q = await vscode.window.showInputBox({ prompt: 'Search scripts by name' });
+            if (q) scriptProvider.search(q);
+        }),
+        vscode.commands.registerCommand('exploitor.searchModules', async () => {
+            const q = await vscode.window.showInputBox({ prompt: 'Search modules by name' });
+            if (q) moduleProvider.search(q);
+        }),
+        vscode.commands.registerCommand('exploitor.searchClosures', async () => {
+            const q = await vscode.window.showInputBox({ prompt: 'Search closures by name or constant' });
+            if (q) closureSpyProvider.search(q, true);
+        }),
 
         vscode.commands.registerCommand('exploitor.refreshUpvalues', () => upvalueProvider.refresh()),
         vscode.commands.registerCommand('exploitor.refreshConstants', () => constantProvider.refresh()),
         vscode.commands.registerCommand('exploitor.refreshScripts', () => scriptProvider.refresh()),
         vscode.commands.registerCommand('exploitor.refreshModules', () => moduleProvider.refresh()),
 
-        vscode.commands.registerCommand('exploitor.scanUpvalues', () => upvalueProvider.refresh()),
-        vscode.commands.registerCommand('exploitor.scanConstants', () => constantProvider.refresh()),
-        vscode.commands.registerCommand('exploitor.scanScripts', () => scriptProvider.refresh()),
-        vscode.commands.registerCommand('exploitor.scanModules', () => moduleProvider.refresh()),
-
         vscode.commands.registerCommand('exploitor.toggleRemoteSpy', () => remoteSpyProvider.toggle()),
-        vscode.commands.registerCommand('exploitor.toggleClosureSpy', () => closureSpyProvider.toggle()),
+        vscode.commands.registerCommand('exploitor.toggleClosureSpy', () => closureSpyProvider.clear()),
         vscode.commands.registerCommand('exploitor.clearRemoteSpy', () => remoteSpyProvider.clear()),
         vscode.commands.registerCommand('exploitor.clearClosureSpy', () => closureSpyProvider.clear()),
 
-        vscode.commands.registerCommand('exploitor.inspectItem', (item: InspectorItem) => {
-            InspectorPanel.createOrShow(context.extensionUri, item);
+        vscode.commands.registerCommand('exploitor.readScript', async (path: string) => {
+            try {
+                const result = await rpc.request<{ source: string }>('read_script', { path });
+                const doc = await vscode.workspace.openTextDocument({ content: result.source, language: 'lua' });
+                vscode.window.showTextDocument(doc);
+            } catch (e) { vscode.window.showErrorMessage(`Failed: ${e}`); }
         }),
 
-        vscode.commands.registerCommand('exploitor.modifyUpvalue', async (item: { upvalue: { closureId: string; index: number; value: string } }) => {
-            const newValue = await vscode.window.showInputBox({
-                prompt: 'Enter new value',
-                value: item.upvalue.value
-            });
-            
-            if (newValue !== undefined) {
-                try {
-                    await rpc.request('modify_upvalue', {
-                        closureId: item.upvalue.closureId,
-                        upvalueIndex: item.upvalue.index,
-                        value: newValue,
-                        valueType: 'string'
-                    });
-                    vscode.window.showInformationMessage('Upvalue modified');
-                    upvalueProvider.refresh();
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Failed to modify upvalue: ${error}`);
-                }
-            }
+        vscode.commands.registerCommand('exploitor.inspectItem', (item: InspectorItem) => {
+            InspectorPanel.createOrShow(context.extensionUri, item);
         }),
 
         statusBarItem,
@@ -134,16 +118,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
 
     const config = vscode.workspace.getConfiguration('exploitor');
-    
-    if (config.get<boolean>('autoConnect')) {
-        wsManager.connect().catch(() => {});
-    }
-
+    if (config.get<boolean>('autoConnect')) wsManager.connect().catch(() => {});
     if (config.get<boolean>('mcp.enabled')) {
         mcpServer = new McpServer();
-        mcpServer.start().catch(err => {
-            console.error('Failed to start MCP server:', err);
-        });
+        mcpServer.start().catch(e => console.error('MCP start failed:', e));
     }
 }
 
@@ -165,8 +143,6 @@ function updateStatusBar(state: ConnectionState): void {
 }
 
 export function deactivate(): void {
-    if (mcpServer) {
-        mcpServer.stop().catch(() => {});
-    }
+    mcpServer?.stop().catch(() => {});
     wsManager?.dispose();
 }
