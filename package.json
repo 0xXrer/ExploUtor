@@ -1,388 +1,255 @@
 {
   "name": "exploitor",
   "displayName": "ExploUtor",
-  "description": "Roblox exploit development environment with Luau LSP and WebSocket executor integration",
+  "description": "VS Code extension for Roblox exploit development with WebSocket execution and MCP integration",
   "version": "0.0.1",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/0xXrer/ExploUtor.git"
-  },
+  "publisher": "exploitor",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Programming Languages",
-    "Debuggers"
+    "Other"
   ],
   "activationEvents": [
-    "onLanguage:luau"
+    "onStartupFinished"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
-    "debuggers": [
-      {
-        "type": "exploitor-debug",
-        "label": "ExploUtor Debugger",
-        "languages": [
-          "luau",
-          "lua"
-        ],
-        "configurationAttributes": {
-          "attach": {
-            "properties": {
-              "host": {
-                "type": "string",
-                "default": "localhost",
-                "description": "Executor WebSocket host"
-              },
-              "port": {
-                "type": "number",
-                "default": 9999,
-                "description": "Executor WebSocket port"
-              }
-            }
-          }
-        },
-        "initialConfigurations": [
-          {
-            "type": "exploitor-debug",
-            "request": "attach",
-            "name": "Attach to Executor",
-            "host": "localhost",
-            "port": 9999
-          }
-        ]
-      }
-    ],
-    "languages": [
-      {
-        "id": "luau",
-        "aliases": [
-          "Luau",
-          "luau"
-        ],
-        "extensions": [
-          ".luau",
-          ".lua"
-        ],
-        "configuration": "./language-configuration.json"
-      }
-    ],
-    "grammars": [
-      {
-        "language": "luau",
-        "scopeName": "source.luau",
-        "path": "./syntaxes/luau.tmLanguage.json"
-      }
-    ],
-    "snippets": [
-      {
-        "language": "luau",
-        "path": "./snippets/luau.json"
-      }
-    ],
     "commands": [
       {
-        "command": "exploitor.execute",
-        "title": "Execute Script",
-        "category": "ExploUtor"
+        "command": "exploitor.connect",
+        "title": "ExploUtor: Connect to Executor"
+      },
+      {
+        "command": "exploitor.disconnect",
+        "title": "ExploUtor: Disconnect"
       },
       {
         "command": "exploitor.executeSelection",
-        "title": "Execute Selection",
-        "category": "ExploUtor"
+        "title": "ExploUtor: Execute Selection"
       },
       {
-        "command": "exploitor.bundleExecute",
-        "title": "Bundle and Execute",
-        "category": "ExploUtor"
+        "command": "exploitor.executeFile",
+        "title": "ExploUtor: Execute File"
       },
       {
-        "command": "exploitor.connectExecutor",
-        "title": "Connect to Executor",
-        "category": "ExploUtor"
+        "command": "exploitor.scanUpvalues",
+        "title": "ExploUtor: Scan Upvalues"
       },
       {
-        "command": "exploitor.disconnectExecutor",
-        "title": "Disconnect from Executor",
-        "category": "ExploUtor"
+        "command": "exploitor.scanConstants",
+        "title": "ExploUtor: Scan Constants"
       },
       {
-        "command": "exploitor.restartScript",
-        "title": "Restart Script",
-        "category": "ExploUtor",
-        "icon": "$(debug-restart)"
+        "command": "exploitor.scanScripts",
+        "title": "ExploUtor: Scan Scripts"
       },
       {
-        "command": "exploitor.openMemoryViewer",
-        "title": "Open Memory Viewer",
-        "category": "ExploUtor"
+        "command": "exploitor.scanModules",
+        "title": "ExploUtor: Scan Modules"
       },
       {
-        "command": "exploitor.openProfiler",
-        "title": "Open Profiler",
-        "category": "ExploUtor",
-        "icon": "$(graph)"
-      },
-      {
-        "command": "exploitor.refreshExplorer",
-        "title": "Refresh Explorer",
-        "category": "ExploUtor",
+        "command": "exploitor.refreshUpvalues",
+        "title": "Refresh",
         "icon": "$(refresh)"
       },
       {
-        "command": "exploitor.clearHistory",
-        "title": "Clear Execution History",
-        "category": "ExploUtor",
+        "command": "exploitor.refreshConstants",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "exploitor.refreshScripts",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "exploitor.refreshModules",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "exploitor.clearRemoteSpy",
+        "title": "Clear",
         "icon": "$(clear-all)"
       },
       {
-        "command": "exploitor.quickExecute",
-        "title": "Quick Execute",
-        "category": "ExploUtor"
+        "command": "exploitor.clearClosureSpy",
+        "title": "Clear",
+        "icon": "$(clear-all)"
       },
       {
-        "command": "exploitor.obfuscateScript",
-        "title": "Obfuscate Script",
-        "category": "ExploUtor"
+        "command": "exploitor.toggleRemoteSpy",
+        "title": "Toggle Remote Spy",
+        "icon": "$(eye)"
       },
       {
-        "command": "exploitor.packScripts",
-        "title": "Pack Scripts",
-        "category": "ExploUtor"
+        "command": "exploitor.toggleClosureSpy",
+        "title": "Toggle Closure Spy",
+        "icon": "$(eye)"
       },
       {
-        "command": "exploitor.switchExecutor",
-        "title": "Switch Executor",
-        "category": "ExploUtor"
+        "command": "exploitor.modifyUpvalue",
+        "title": "Modify Value"
       },
       {
-        "command": "exploitor.inspectVariables",
-        "title": "Inspect Variables",
-        "category": "ExploUtor"
-      },
-      {
-        "command": "exploitor.insertPattern",
-        "title": "Insert Exploit Pattern",
-        "category": "ExploUtor"
-      },
-      {
-        "command": "exploitor.disassemble",
-        "title": "Disassemble Script",
-        "category": "ExploUtor"
-      },
-      {
-        "command": "exploitor.injectModifier",
-        "title": "Inject Bytecode Modifier",
-        "category": "ExploUtor"
-      },
-      {
-        "command": "exploitor.dumpProto",
-        "title": "Dump Function Protos",
-        "category": "ExploUtor"
+        "command": "exploitor.inspectItem",
+        "title": "Inspect"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "exploUtor",
+          "id": "exploitor",
           "title": "ExploUtor",
-          "icon": "$(debug-alt)"
+          "icon": "media/icons/exploitor.svg"
         }
       ]
     },
     "views": {
-      "exploUtor": [
+      "exploitor": [
         {
-          "id": "exploUtorExplorer",
-          "name": "Explorer",
-          "icon": "$(debug-alt)",
-          "contextualTitle": "ExploUtor Explorer"
+          "id": "exploitor.upvalues",
+          "name": "Upvalue Scanner"
         },
         {
-          "id": "exploUtorInjection",
-          "name": "Running Scripts",
-          "icon": "$(play)",
-          "contextualTitle": "Running Scripts"
+          "id": "exploitor.constants",
+          "name": "Constant Scanner"
+        },
+        {
+          "id": "exploitor.scripts",
+          "name": "Script Scanner"
+        },
+        {
+          "id": "exploitor.modules",
+          "name": "Module Scanner"
+        },
+        {
+          "id": "exploitor.remoteSpy",
+          "name": "Remote Spy"
+        },
+        {
+          "id": "exploitor.closureSpy",
+          "name": "Closure Spy"
         }
       ]
     },
     "menus": {
       "view/title": [
         {
-          "command": "exploitor.refreshExplorer",
-          "when": "view == exploUtorExplorer",
+          "command": "exploitor.refreshUpvalues",
+          "when": "view == exploitor.upvalues",
           "group": "navigation"
         },
         {
-          "command": "exploitor.clearHistory",
-          "when": "view == exploUtorExplorer",
+          "command": "exploitor.refreshConstants",
+          "when": "view == exploitor.constants",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.refreshScripts",
+          "when": "view == exploitor.scripts",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.refreshModules",
+          "when": "view == exploitor.modules",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.toggleRemoteSpy",
+          "when": "view == exploitor.remoteSpy",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.clearRemoteSpy",
+          "when": "view == exploitor.remoteSpy",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.toggleClosureSpy",
+          "when": "view == exploitor.closureSpy",
+          "group": "navigation"
+        },
+        {
+          "command": "exploitor.clearClosureSpy",
+          "when": "view == exploitor.closureSpy",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
-          "command": "exploitor.killScript",
-          "when": "view == exploUtorInjection && viewItem == runningScript",
-          "group": "inline"
+          "command": "exploitor.modifyUpvalue",
+          "when": "view == exploitor.upvalues && viewItem == upvalue"
         },
         {
-          "command": "exploitor.restartScript",
-          "when": "view == exploUtorInjection && viewItem == runningScript",
-          "group": "inline"
-        }
-      ],
-      "editor/context": [
-        {
-          "command": "exploitor.quickExecute",
-          "when": "editorLangId == luau",
-          "group": "exploitor@1"
-        },
-        {
-          "command": "exploitor.executeSelection",
-          "when": "editorLangId == luau && editorHasSelection",
-          "group": "exploitor@2"
-        },
-        {
-          "command": "exploitor.bundleExecute",
-          "when": "editorLangId == luau",
-          "group": "exploitor@3"
-        },
-        {
-          "command": "exploitor.obfuscateScript",
-          "when": "editorLangId == luau",
-          "group": "exploitor@4"
-        },
-        {
-          "command": "exploitor.packScripts",
-          "when": "editorLangId == luau",
-          "group": "exploitor@5"
-        },
-        {
-          "command": "exploitor.inspectVariables",
-          "when": "editorLangId == luau",
-          "group": "exploitor@6"
+          "command": "exploitor.inspectItem",
+          "when": "view == exploitor.upvalues || view == exploitor.constants || view == exploitor.scripts || view == exploitor.modules"
         }
       ]
     },
-    "keybindings": [
-      {
-        "command": "exploitor.execute",
-        "key": "f5",
-        "when": "editorLangId == luau"
-      },
-      {
-        "command": "exploitor.executeSelection",
-        "key": "shift+f5",
-        "when": "editorLangId == luau && editorHasSelection"
-      }
-    ],
     "configuration": {
       "title": "ExploUtor",
       "properties": {
-        "exploitor.executor.host": {
+        "exploitor.websocket.host": {
           "type": "string",
           "default": "localhost",
-          "description": "Executor WebSocket host"
+          "description": "WebSocket server host"
         },
-        "exploitor.executor.port": {
+        "exploitor.websocket.port": {
           "type": "number",
-          "default": 9999,
-          "description": "Executor WebSocket port"
+          "default": 8080,
+          "description": "WebSocket server port"
         },
-        "exploitor.bundler.enabled": {
+        "exploitor.autoConnect": {
           "type": "boolean",
           "default": true,
-          "description": "Enable automatic bundling before execution"
+          "description": "Automatically connect on startup"
         },
-        "exploitor.bundler.tool": {
-          "type": "string",
-          "enum": [
-            "wax",
-            "darklua"
-          ],
-          "default": "darklua",
-          "description": "Bundler tool to use"
-        },
-        "exploitor.lsp.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable Luau LSP integration"
-        },
-        "exploitor.liveReload.enabled": {
+        "exploitor.remoteSpy.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Auto-execute script on file save"
+          "description": "Enable Remote Spy on connect"
         },
-        "exploitor.liveReload.debounce": {
-          "type": "number",
-          "default": 500,
-          "description": "Debounce time in milliseconds for live reload"
+        "exploitor.closureSpy.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Closure Spy on connect"
         },
-        "exploitor.errorBeautifier.enabled": {
+        "exploitor.mcp.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Format executor errors nicely"
+          "description": "Enable MCP server"
         },
-        "exploitor.executors": {
-          "type": "array",
-          "default": [
-            {
-              "name": "Default",
-              "host": "localhost",
-              "port": 9999
-            }
-          ],
-          "description": "List of executor configurations",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "host": {
-                "type": "string"
-              },
-              "port": {
-                "type": "number"
-              }
-            }
-          }
-        },
-        "exploitor.activeExecutor": {
-          "type": "string",
-          "default": "Default",
-          "description": "Currently active executor profile"
+        "exploitor.mcp.port": {
+          "type": "number",
+          "default": 3000,
+          "description": "MCP server port"
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/glob": "^8.1.0",
-    "@types/luaparse": "^0.2.13",
-    "@types/mocha": "^10.0.6",
-    "@types/node": "18.x",
+    "@types/node": "^20.x",
     "@types/vscode": "^1.85.0",
-    "@types/ws": "^8.5.10",
-    "@typescript-eslint/eslint-plugin": "^6.15.0",
-    "@typescript-eslint/parser": "^6.15.0",
-    "@vscode/test-electron": "^2.3.8",
-    "eslint": "^8.56.0",
-    "glob": "^10.3.10",
-    "mocha": "^10.2.0",
-    "typescript": "^5.3.3"
+    "@types/ws": "^8.x",
+    "@typescript-eslint/eslint-plugin": "^6.x",
+    "@typescript-eslint/parser": "^6.x",
+    "eslint": "^8.x",
+    "ts-loader": "^9.x",
+    "typescript": "^5.x",
+    "webpack": "^5.x",
+    "webpack-cli": "^5.x"
   },
   "dependencies": {
-    "luaparse": "^0.3.1",
-    "vscode-languageclient": "^9.0.1",
-    "ws": "^8.16.0"
+    "ws": "^8.x",
+    "@modelcontextprotocol/sdk": "^1.0.0"
   }
 }
