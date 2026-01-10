@@ -1,8 +1,9 @@
 name: Release VSIX Package
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   package:
@@ -35,10 +36,11 @@ jobs:
       - name: Debug - List files
         run: ls -la *.vsix || echo "No VSIX found"
 
-      - name: Upload VSIX to release
+      - name: Create Release and Upload VSIX
         uses: softprops/action-gh-release@v1
         with:
           files: exploitor.vsix
+          generate_release_notes: true
           draft: false
           prerelease: false
         env:
