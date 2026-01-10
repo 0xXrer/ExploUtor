@@ -29,11 +29,14 @@ jobs:
         run: npm run package
 
       - name: Package VSIX
-        run: npx vsce package --out exploitor.vsix
+        run: npx vsce package --out exploitor-${{ github.event.release.tag_name }}.vsix
 
       - name: Upload VSIX to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: exploitor.vsix
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./exploitor-${{ github.event.release.tag_name }}.vsix
+          asset_name: exploitor-${{ github.event.release.tag_name }}.vsix
+          asset_content_type: application/zip
