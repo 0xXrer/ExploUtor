@@ -271,6 +271,7 @@
     "@types/ws": "^8.x",
     "@typescript-eslint/eslint-plugin": "^6.x",
     "@typescript-eslint/parser": "^6.x",
+    "@vscode/vsce": "^2.x",
     "eslint": "^8.x",
     "ts-loader": "^9.x",
     "typescript": "^5.x",
