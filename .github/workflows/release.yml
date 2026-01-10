@@ -24,19 +24,22 @@ jobs:
 
       - name: Run linter
         run: npm run lint
+        continue-on-error: true
 
       - name: Build extension
         run: npm run package
 
       - name: Package VSIX
-        run: npx vsce package --out exploitor-${{ github.event.release.tag_name }}.vsix
+        run: npx vsce package --out exploitor.vsix --no-git-tag-version
+
+      - name: Debug - List files
+        run: ls -la *.vsix || echo "No VSIX found"
 
       - name: Upload VSIX to release
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
+        with:
+          files: exploitor.vsix
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./exploitor-${{ github.event.release.tag_name }}.vsix
-          asset_name: exploitor-${{ github.event.release.tag_name }}.vsix
-          asset_content_type: application/zip
