@@ -245,7 +245,7 @@ export class InspectorPanel {
     }
 
     private getScriptContent(data: ScriptInfo): string {
-        const escapedSource = this.escapeHtml(data.source).replace(/`/g, '\\`');
+        const escapedSource = this.escapeForTemplateLiteral(data.source);
         return `
             <h1>Script Inspector</h1>
             <div class="property"><span class="property-name">Name:</span><span class="property-value">${this.escapeHtml(data.name)}</span></div>
@@ -261,7 +261,7 @@ export class InspectorPanel {
     }
 
     private getModuleContent(data: ModuleInfo): string {
-        const escapedSource = this.escapeHtml(data.source).replace(/`/g, '\\`');
+        const escapedSource = this.escapeForTemplateLiteral(data.source);
         return `
             <h1>Module Inspector</h1>
             <div class="property"><span class="property-name">Name:</span><span class="property-value">${this.escapeHtml(data.name)}</span></div>
@@ -323,6 +323,14 @@ export class InspectorPanel {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    private escapeForTemplateLiteral(text: string): string {
+        // Escape for both HTML and JavaScript template literal context
+        return this.escapeHtml(text)
+            .replace(/\\/g, '\\\\')
+            .replace(/`/g, '\\`')
+            .replace(/\$/g, '\\$');
     }
 
     public dispose(): void {
